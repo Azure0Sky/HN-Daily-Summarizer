@@ -12,7 +12,7 @@ def truncate_text(text, max_chars):
 
 def generate_summary(title, content, comments, api_key):
     """Call the LLM to generate a summary based on the title, content, and comments."""
-    client = OpenAI(api_key=api_key)
+    client = OpenAI(base_url='https://chatapi.starlake.tech/v1', api_key=api_key)
 
     safe_content = truncate_text(content, 6000)
 
