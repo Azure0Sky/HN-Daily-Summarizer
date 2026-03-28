@@ -78,7 +78,8 @@ def generate_summary(title, content, comments, api_key):
         if parsed_data is not None:
             # Format the final markdown output for Telegram
             final_md = (
-                f"**{title}**\n"
+                f"**【{title}】**\n"
+                f'**【{parsed_data.translated_title}】**\n'
                 f"- 📰 **核心要点**: {parsed_data.core_point}\n"
                 f"- 💬 **社区观点**: {parsed_data.community_views}"
             )
