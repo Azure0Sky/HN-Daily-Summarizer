@@ -39,6 +39,16 @@ def generate_summary(title, content, comments, api_key):
     {safe_comments}
     """
 
+    # For test LLM
+    response = client.chat.completions.create(
+        model="Qwen/Qwen3.5",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "Hello!"}
+        ]
+    )
+    logging.info(f'Test LLM response: {response.choices[0].message.content.strip()}')
+
     try:
         response = client.chat.completions.create(
             model=MODEL_NAME,
@@ -48,7 +58,7 @@ def generate_summary(title, content, comments, api_key):
             ],
             temperature=0.2,
             max_tokens=2000,
-            timeout=120
+            timeout=300
         )
 
         summary = response.choices[0].message.content.strip()
