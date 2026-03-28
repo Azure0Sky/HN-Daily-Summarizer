@@ -6,7 +6,6 @@ MODEL_NAME = "Qwen/Qwen3.5"
 
 
 class SummaryReport(BaseModel):
-    original_title: str
     translated_title: str
     core_point: str = Field(
         description='用一至两句话总结文章到底讲了什么技术、产品或事件。要求客观、精炼。'
@@ -78,7 +77,8 @@ def generate_summary(title, content, comments, api_key):
         if parsed_data is not None:
             # Format the final markdown output for Telegram
             final_md = (
-                f"**{title}**\n"
+                f"**【{title}】**\n"
+                f'**【{parsed_data.translated_title}】**\n'
                 f"- 📰 **核心要点**: {parsed_data.core_point}\n"
                 f"- 💬 **社区观点**: {parsed_data.community_views}"
             )
