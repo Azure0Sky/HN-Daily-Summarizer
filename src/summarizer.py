@@ -20,12 +20,13 @@ def generate_summary(title, content, comments, api_key):
     safe_comments = truncate_text(joined_comments, 3000)
 
     system_prompt = """
-    你是一个资深的科技媒体编辑。你的任务是根据提供的 Hacker News 帖子标题、正文和评论区内容，输出一份极其精简的结构化中文简报。
-    
+    你是一个资深的科技媒体编辑。你的任务是根据提供的 Hacker News 帖子标题、正文和评论区内容，输出一份精简的结构化中文简报。
+
     输出必须严格遵循以下 Markdown 格式，不要包含任何多余的寒暄语：
-    
-    **[标题]**
-    - 📰 **核心要点**: (用一句话总结文章到底讲了什么技术、产品或事件)
+
+    **《原标题》**
+    **《中译标题》**
+    - 📰 **核心要点**: (用一至两句话总结文章到底讲了什么技术、产品或事件)
     - 💬 **社区观点**: (概括评论区的主要共识、争议或有价值的补充视角。如果没有评论，请写“暂无有价值评论”)
     """
 
@@ -39,16 +40,6 @@ def generate_summary(title, content, comments, api_key):
     {safe_comments}
     """
 
-    # For test LLM
-    response = client.chat.completions.create(
-        model="Qwen/Qwen3.5",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": "Hello!"}
-        ]
-    )
-    logging.info(f'Test LLM response: {response.choices[0].message.content.strip()}')
-
     try:
         response = client.chat.completions.create(
             model=MODEL_NAME,
@@ -57,8 +48,8 @@ def generate_summary(title, content, comments, api_key):
                 {"role": "user", "content": user_content}
             ],
             temperature=0.2,
-            max_tokens=2000,
-            timeout=300
+            max_tokens=3000,
+            timeout=420
         )
 
         summary = response.choices[0].message.content.strip()

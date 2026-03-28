@@ -65,7 +65,7 @@ def clean_html(raw_html):
 
 def get_top_comments(story_id, kids, limit=10, fetch_kids=True, kids_num=3):
     """
-    Get the top comments.
+    Get the top comments and their replies optionally.
     HN comments are tree-structured. Fetch 'limit' comments and their following replies if fetch_kids is True.
     """
     if not kids:
