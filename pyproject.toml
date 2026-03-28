@@ -1,0 +1,11 @@
+[project]
+name = "hn-daily-summarizer"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "openai>=2.30.0",
+    "requests>=2.33.0",
+    "trafilatura>=2.0.0",
+]

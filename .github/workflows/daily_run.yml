@@ -1,0 +1,35 @@
+name: HN Daily Summarizer
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # UTC +8 时间每天上午11点触发
+  workflow_dispatch: 
+    # 允许你在 GitHub 网页端手动点击按钮触发，这对于测试非常重要
+
+jobs:
+  run-summarizer:
+    runs-on: ubuntu-latest # 使用最新的 Ubuntu 运行环境
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        # 将代码拉取到虚拟机中
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Main Script
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        run: |
+          python src/main.py
