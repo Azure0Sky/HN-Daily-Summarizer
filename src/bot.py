@@ -8,6 +8,7 @@ logging.basicConfig(
     level=logging.INFO
 )
 
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command"""
     await update.message.reply_text(

@@ -2,7 +2,7 @@ import logging
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
-MODEL_NAME = "Qwen/Qwen3.5"
+MODEL_NAME = 'Qwen/Qwen3.5'
 
 
 class SummaryReport(BaseModel):

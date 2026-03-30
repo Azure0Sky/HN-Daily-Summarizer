@@ -36,7 +36,7 @@ def main():
             try:
                 # Fetch the webpage content and top comments
                 content_data = fetch_story_content(story=story)
-                
+
                 # Call the LLM to generate a summary
                 # Pass in the title, fetched content, and comments
                 summary = generate_summary(
