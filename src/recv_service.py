@@ -33,7 +33,8 @@ chroma_client = chromadb.PersistentClient(path=CHROMA_DATA_DIR)
 # Configure the OpenAI embedding function
 openai_ef = OpenAIEmbeddingFunction(
     api_key=os.getenv('LLM_API_KEY'),
-    model_name='Qwen/Qwen3-VL-Embedding-2B'
+    model_name='Qwen/Qwen3-VL-Embedding-2B',
+    api_base=os.getenv('LLM_BASE_URL', 'https://chatapi.starlake.tech/v1')
 )
 
 # Github should include the API key in the header of the POST request, with the key name defined in API_KEY_NAME
@@ -43,7 +44,7 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
 
 def verify_api_key(api_key: str = Security(api_key_header)):
     # Configured in .env.prod
-    expected_key = os.getenv('DO_API_SECRET', 'change_this_to_a_complex_random_string')
+    expected_key = os.getenv('DO_API_SECRET')
     if api_key != expected_key:
         logging.warning('Unauthorized access attempt to API.')
         raise HTTPException(status_code=403, detail='Could not validate credentials')
