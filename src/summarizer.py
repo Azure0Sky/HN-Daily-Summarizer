@@ -4,7 +4,8 @@ from typing import Optional
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
-MODEL_NAME = 'Qwen/Qwen3.5'
+CHAT_MODEL_NAME = 'Qwen/Qwen3.5'
+LLM_BASE_URL = 'https://chatapi.starlake.tech/v1'  # TODO: Move to .env and use os.getenv to read
 
 
 class SummaryReport(BaseModel):
@@ -16,11 +17,11 @@ class SummaryReport(BaseModel):
         description='概括评论区的主要共识、争议或有价值的补充视角。如果没有评论或评论无价值，请输出\"暂无有价值评论\"。'
     )
     tags: Optional[str] = Field(
-        description='请提取2-5个简短标签，标签之间用逗号分隔。如果无法提取，请输出\"无标签\"。'
+        description='请提取2-5个简短标签，标签之间用英文逗号分隔。如果无法提取，请输出[无标签]。'
     )
 
 
-def truncate_text(text, max_chars):
+def _truncate_text(text, max_chars):
     if not text:
         return ''
     return text[:max_chars] + ('...\n[Content Truncated]' if len(text) > max_chars else '')
@@ -28,12 +29,12 @@ def truncate_text(text, max_chars):
 
 def generate_summary(title, content, comments, api_key):
     """Call the LLM and return a structured summary for a single HN story."""
-    client = OpenAI(base_url='https://chatapi.starlake.tech/v1', api_key=api_key)
+    client = OpenAI(base_url=LLM_BASE_URL, api_key=api_key)
 
-    safe_content = truncate_text(content, 6000)
+    safe_content = _truncate_text(content, 6000)
 
     joined_comments = "\n---\n".join(comments)
-    safe_comments = truncate_text(joined_comments, 3000)
+    safe_comments = _truncate_text(joined_comments, 3000)
 
     system_prompt = """
     你是一个资深的科技分析师。你的任务是深度阅读 Hacker News 的文章和评论，并提取核心洞察。
@@ -67,7 +68,7 @@ def generate_summary(title, content, comments, api_key):
         # )
 
         response = client.chat.completions.parse(
-            model=MODEL_NAME,
+            model=CHAT_MODEL_NAME,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_content}

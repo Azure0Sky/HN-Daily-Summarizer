@@ -1,6 +1,7 @@
 import os
 import logging
 import hashlib
+import uvicorn
 import chromadb
 from typing import List
 from datetime import date
@@ -8,6 +9,8 @@ from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, Security
 from fastapi.security import APIKeyHeader
 from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
+
+from database import get_chroma_collection
 
 
 # Except original title, all fields must be consistent with the output of the summarizer
@@ -33,12 +36,6 @@ openai_ef = OpenAIEmbeddingFunction(
     model_name='Qwen/Qwen3-VL-Embedding-2B'
 )
 
-collection = chroma_client.get_or_create_collection(
-    name='hn_daily_news',
-    embedding_function=openai_ef
-)
-
-
 # Github should include the API key in the header of the POST request, with the key name defined in API_KEY_NAME
 API_KEY_NAME = 'X-Action-Secret'
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
@@ -57,6 +54,7 @@ def verify_api_key(api_key: str = Security(api_key_header)):
 app = FastAPI(title='HN Agent Data Interface')
 
 
+# Run in DO Server
 @app.post('/api/webhook/daily_news', dependencies=[Security(verify_api_key)])
 async def receive_daily_news(payload: DailyDigestPayload):
     logging.info(f'Processing payload for date: {payload.d}, items: {len(payload.summaries)}')
@@ -86,6 +84,7 @@ async def receive_daily_news(payload: DailyDigestPayload):
         doc_id = hashlib.md5(unique_str).hexdigest()
         ids.append(doc_id)
 
+    collection = get_chroma_collection()
     try:
         collection.upsert(
             documents=documents,
@@ -98,3 +97,8 @@ async def receive_daily_news(payload: DailyDigestPayload):
     except Exception as e:
         logging.error(f'Failed to insert into ChromaDB: {e}')
         raise HTTPException(status_code=500, detail='Database insertion failed.')
+
+
+if __name__ == '__main__':
+    api_port = int(os.getenv('FASTAPI_SERVER_PORT', 80011))
+    uvicorn.run(app, host='0.0.0.0', port=api_port)  # listen on all interfaces

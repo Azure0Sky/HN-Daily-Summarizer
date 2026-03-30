@@ -21,6 +21,7 @@ def format_summary_markdown(original_title, summary):
     )
 
 
+# Run in Github Actions
 def main():
     # 1. Check environment variables
     llm_key = os.getenv('LLM_API_KEY')

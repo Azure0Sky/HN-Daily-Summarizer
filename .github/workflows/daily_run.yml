@@ -4,7 +4,6 @@ on:
   schedule:
     - cron: '0 3 * * *' # UTC +8 时间每天上午11点触发
   workflow_dispatch: 
-    # 允许你在 GitHub 网页端手动点击按钮触发，这对于测试非常重要
 
 jobs:
   run-summarizer:
