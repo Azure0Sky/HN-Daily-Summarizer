@@ -13,8 +13,9 @@ def get_chroma_collection():
     chroma_client = chromadb.HttpClient(host='127.0.0.1', port=chroma_port)
 
     openai_ef = cast(Any, embedding_functions.OpenAIEmbeddingFunction(
-        api_key=os.getenv('LLM_API_KEY'),
-        model_name='Qwen/Qwen3-VL-Embedding-2B'
+        api_key_env_var='LLM_API_KEY',
+        model_name='Qwen/Qwen3-VL-Embedding-2B',
+        api_base=os.getenv('LLM_BASE_URL', 'https://chatapi.starlake.tech/v1')
     ))  # cast to Any to bypass type issues with Chroma's embedding function
 
     collection = chroma_client.get_or_create_collection(

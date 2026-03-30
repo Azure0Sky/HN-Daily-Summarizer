@@ -8,7 +8,6 @@ from datetime import date
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, Security
 from fastapi.security import APIKeyHeader
-from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
 
 from database import get_chroma_collection
 
@@ -29,13 +28,6 @@ class DailyDigestPayload(BaseModel):
 # Initialize ChromaDB. Persist data to local directory.
 CHROMA_DATA_DIR = './chroma_data'
 chroma_client = chromadb.PersistentClient(path=CHROMA_DATA_DIR)
-
-# Configure the OpenAI embedding function
-openai_ef = OpenAIEmbeddingFunction(
-    api_key=os.getenv('LLM_API_KEY'),
-    model_name='Qwen/Qwen3-VL-Embedding-2B',
-    api_base=os.getenv('LLM_BASE_URL', 'https://chatapi.starlake.tech/v1')
-)
 
 # Github should include the API key in the header of the POST request, with the key name defined in API_KEY_NAME
 API_KEY_NAME = 'X-Action-Secret'
