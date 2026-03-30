@@ -1,10 +1,14 @@
 import os
 import logging
+import hashlib
+import chromadb
+from typing import List
 from datetime import date
+from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, Security
 from fastapi.security import APIKeyHeader
-from pydantic import BaseModel
-from typing import List
+from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
+
 
 # Except original title, all fields must be consistent with the output of the summarizer
 class NewsSummaryReport(BaseModel):
@@ -17,6 +21,22 @@ class NewsSummaryReport(BaseModel):
 class DailyDigestPayload(BaseModel):
     d: date
     summaries: List[NewsSummaryReport]
+
+
+# Initialize ChromaDB. Persist data to local directory.
+CHROMA_DATA_DIR = './chroma_data'
+chroma_client = chromadb.PersistentClient(path=CHROMA_DATA_DIR)
+
+# Configure the OpenAI embedding function
+openai_ef = OpenAIEmbeddingFunction(
+    api_key=os.getenv('LLM_API_KEY'),
+    model_name='Qwen/Qwen3-VL-Embedding-2B'
+)
+
+collection = chroma_client.get_or_create_collection(
+    name='hn_daily_news',
+    embedding_function=openai_ef
+)
 
 
 # Github should include the API key in the header of the POST request, with the key name defined in API_KEY_NAME
@@ -34,19 +54,47 @@ def verify_api_key(api_key: str = Security(api_key_header)):
     return api_key
 
 
-app = FastAPI(title='HN Agent Data Interface', 
-              description='接收来自 GitHub Actions 的每日新闻总结数据，并存入向量数据库')
+app = FastAPI(title='HN Agent Data Interface')
 
 
-# Security(verify_api_key) forces the endpoint to require a valid API key in the header for authentication
 @app.post('/api/webhook/daily_news', dependencies=[Security(verify_api_key)])
 async def receive_daily_news(payload: DailyDigestPayload):
-    """Receive the daily news summary from GitHub Actions, process it, and store it in the RAG memory"""
-    logging.info(f'Received {len(payload.summaries)} news items for date: {payload.d}')
+    logging.info(f'Processing payload for date: {payload.d}, items: {len(payload.summaries)}')
 
-    # Temporary placeholder for actual database storage logic
-    for idx, item in enumerate(payload.summaries):
-        print(f'[{idx+1}] Saving to DB: {item.translated_title}')
+    documents = []
+    metadatas = []
+    ids = []
 
-    # FastAPI would convert the returned dictionary to JSON and send it back as the HTTP response
-    return {'status': 'success', 'message': 'Data ingested into RAG memory successfully.'}
+    for news_summary in payload.summaries:
+        # Construct the text content for embedding
+        text_content = f"""
+        原标题: {news_summary.original_title}
+        中译标题: {news_summary.translated_title}
+        核心要点: {news_summary.core_point}
+        社区观点: {news_summary.community_views}
+        """
+        documents.append(text_content)
+
+        metadatas.append({
+            'date': payload.d.isoformat(),
+            'source': 'HackerNews',
+            'title': news_summary.original_title
+        })
+
+        # Generate a unique ID for each document based on the date and original title
+        unique_str = f'{payload.d}-{news_summary.original_title}'.encode('utf-8')
+        doc_id = hashlib.md5(unique_str).hexdigest()
+        ids.append(doc_id)
+
+    try:
+        collection.upsert(
+            documents=documents,
+            metadatas=metadatas,
+            ids=ids
+        )
+        logging.info('Successfully ingested into ChromaDB.')
+        return {'status': 'success', 'inserted_count': len(documents)}
+
+    except Exception as e:
+        logging.error(f'Failed to insert into ChromaDB: {e}')
+        raise HTTPException(status_code=500, detail='Database insertion failed.')

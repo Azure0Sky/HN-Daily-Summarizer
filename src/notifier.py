@@ -10,9 +10,9 @@ def send_telegram_message(text, bot_token, chat_id):
     """Send a message to a Telegram chat using the Bot API. Handles long messages by splitting them into parts."""
     if not text:
         logging.warning('No text to send.')
-        return
+        return False
 
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
 
     # If the text is too long, split it into parts based on double newlines (typically separators between news items).
     message_parts = []
@@ -43,7 +43,7 @@ def send_telegram_message(text, bot_token, chat_id):
         try:
             response = requests.post(url, json=payload, timeout=10)
             
-            if response.status_code == 400 and "can't parse entities" in response.text:
+            if response.status_code == 400 and "can\'t parse entities" in response.text:
                 logging.warning('Markdown parse error. Retrying as plain text.')
                 payload['parse_mode'] = ''  # fallback to plain text
                 response = requests.post(url, json=payload, timeout=10)
@@ -57,3 +57,6 @@ def send_telegram_message(text, bot_token, chat_id):
                 
         except Exception as e:
             logging.error(f"Failed to send Telegram message part {i+1}: {e}\nResponse: {response.text if 'response' in locals() else 'No response'}")
+            return False
+
+    return True

@@ -1,4 +1,6 @@
 import logging
+from typing import Optional
+
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
@@ -13,6 +15,9 @@ class SummaryReport(BaseModel):
     community_views: str = Field(
         description='概括评论区的主要共识、争议或有价值的补充视角。如果没有评论或评论无价值，请输出\"暂无有价值评论\"。'
     )
+    tags: Optional[str] = Field(
+        description='请提取2-5个简短标签，标签之间用逗号分隔。如果无法提取，请输出\"无标签\"。'
+    )
 
 
 def truncate_text(text, max_chars):
@@ -22,7 +27,7 @@ def truncate_text(text, max_chars):
 
 
 def generate_summary(title, content, comments, api_key):
-    """Call the LLM to generate a summary based on the title, content, and comments."""
+    """Call the LLM and return a structured summary for a single HN story."""
     client = OpenAI(base_url='https://chatapi.starlake.tech/v1', api_key=api_key)
 
     safe_content = truncate_text(content, 6000)
@@ -72,23 +77,26 @@ def generate_summary(title, content, comments, api_key):
             response_format=SummaryReport
         )
 
-        parsed_data: SummaryReport = response.choices[0].message.parsed
+        parsed_data: Optional[SummaryReport] = response.choices[0].message.parsed
 
         if parsed_data is not None:
-            # Format the final markdown output for Telegram
-            final_md = (
-                f"**【{title}】**\n"
-                f'**【{parsed_data.translated_title}】**\n'
-                f"- 📰 **核心要点**: {parsed_data.core_point}\n"
-                f"- 💬 **社区观点**: {parsed_data.community_views}"
-            )
-            return final_md
+            return parsed_data
 
         else:
             logging.warning(f'LLM returned no parsable data for "{title}". Response content: {response.choices[0].message.content}')
-            return f'**{title}**\n- 📰 **核心要点**: [大模型总结失败]\n- 💬 **社区观点**: [大模型总结失败]'
+            return SummaryReport(
+                translated_title=title,
+                core_point='[大模型总结失败]',
+                community_views='[大模型总结失败]',
+                tags=None
+            )
 
     except Exception as e:
         logging.error(f'LLM generation failed for "{title}": {e}')
-        # If the LLM call fails, return a fallback summary that at least includes the title
-        return f'**{title}**\n- 📰 **核心要点**: [大模型总结失败]\n- 💬 **社区观点**: [大模型总结失败]'
+        # Return a safe fallback object so the downstream pipeline can continue.
+        return SummaryReport(
+            translated_title=title,
+            core_point='[大模型总结失败]',
+            community_views='[大模型总结失败]',
+            tags=None
+        )
