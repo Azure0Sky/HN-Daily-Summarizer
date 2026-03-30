@@ -67,7 +67,8 @@ def main():
                 # 3.1 Keep markdown output for Telegram.
                 final_reports.append(format_summary_markdown(story_title, summary))
 
-                # 3.2 Keep structured output for FastAPI ingestion.
+                # 3.2 Keep structured output for FastAPI ingestion. 
+                # Must align with NewsSummaryReport in src/recv_service.py
                 structured_summaries.append({
                     'original_title': story_title,
                     'translated_title': summary.translated_title,
@@ -112,8 +113,7 @@ def main():
             logging.warning('No summaries generated today.')
 
     except Exception as e:
-        logging.critical(f'Critical error in workflow: {e}')
-        # 在实际工程中，这里可以向 Telegram 发送一条错误告警，而不是默默失败
+        logging.critical(f'Critical error in workflow: {e}')  # TODO: May send message to Telegram if this happens
 
 
 if __name__ == "__main__":
