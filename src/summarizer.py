@@ -1,11 +1,14 @@
+import os
 import logging
 from typing import Optional
 
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
-CHAT_MODEL_NAME = 'Qwen/Qwen3.5'
-LLM_BASE_URL = 'https://chatapi.starlake.tech/v1'  # TODO: Move to .env and use os.getenv to read
+# CHAT_MODEL_NAME = os.getenv('CHAT_MODEL_NAME', 'Qwen/Qwen3.5')
+# LLM_BASE_URL = os.getenv('LLM_BASE_URL', 'https://chatapi.starlake.tech/v1')
+CHAT_MODEL_NAME = os.getenv('OR_CHAT_MODEL_NAME', 'qwen/qwen3.6-plus-preview:free')
+LLM_BASE_URL = os.getenv('OR_LLM_BASE_URL', 'https://openrouter.ai/api/v1')
 
 
 class SummaryReport(BaseModel):
