@@ -27,7 +27,13 @@ jobs:
 
       - name: Run Main Script
         env:
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          CHAT_MODEL_NAME: ${{ secrets.CHAT_MODEL_NAME }}
+          OR_LLM_BASE_URL: ${{ secrets.OR_LLM_BASE_URL }}
+          OR_LLM_API_KEY: ${{ secrets.OR_LLM_API_KEY }}
+          OR_CHAT_MODEL_NAME: ${{ secrets.OR_CHAT_MODEL_NAME }}
+          
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
           DO_SERVER_WEBHOOK_URL: ${{ secrets.DO_SERVER_WEBHOOK_URL }}
