@@ -41,7 +41,7 @@ def generate_summary(title, content, comments, api_key):
 
     system_prompt = """
     你是一个资深的科技分析师。你的任务是深度阅读 Hacker News 的文章和评论，并提取核心洞察。
-    提取的信息必须使用中文严格映射到提供的结构化模式中。
+    提取的信息必须使用中文严格映射到提供的json结构化模式中。
     
     分析原则：
     1. 剔除废话，保留硬核技术细节或商业逻辑。
