@@ -24,8 +24,8 @@ def format_summary_markdown(original_title, summary):
 # Run in Github Actions
 def main():
     # 1. Check environment variables
-    # llm_key = os.getenv('LLM_API_KEY')
-    llm_key = os.getenv('OR_LLM_API_KEY')
+    llm_key = os.getenv('LLM_API_KEY')
+    # llm_key = os.getenv('OR_LLM_API_KEY')
 
     tg_token = os.getenv('TG_BOT_TOKEN')
     tg_chat_id = os.getenv('TG_CHAT_ID')

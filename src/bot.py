@@ -14,10 +14,10 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# CHAT_MODEL_NAME = os.getenv('CHAT_MODEL_NAME', 'Qwen/Qwen3.5')
-# LLM_BASE_URL = os.getenv('LLM_BASE_URL', 'https://chatapi.starlake.tech/v1')
-CHAT_MODEL_NAME = os.getenv('OR_CHAT_MODEL_NAME', 'qwen/qwen3.6-plus-preview:free')
-LLM_BASE_URL = os.getenv('OR_LLM_BASE_URL', 'https://openrouter.ai/api/v1')
+CHAT_MODEL_NAME = os.getenv('CHAT_MODEL_NAME', 'Qwen/Qwen3.5')
+LLM_BASE_URL = os.getenv('LLM_BASE_URL', 'https://chatapi.starlake.tech/v1')
+# CHAT_MODEL_NAME = os.getenv('OR_CHAT_MODEL_NAME', 'qwen/qwen3.6-plus-preview:free')
+# LLM_BASE_URL = os.getenv('OR_LLM_BASE_URL', 'https://openrouter.ai/api/v1')
 
 DEFAULT_RETRIEVAL_TOP_K = 5
 DEFAULT_DISTANCE_THRESHOLD = 1.0
@@ -27,8 +27,8 @@ MAX_CONTEXT_CHARS = 2000
 
 @lru_cache(maxsize=1)
 def _get_LLM_client() -> OpenAI:
-    # api_key = os.getenv('LLM_API_KEY')
-    api_key = os.getenv('OR_LLM_API_KEY')
+    api_key = os.getenv('LLM_API_KEY')
+    # api_key = os.getenv('OR_LLM_API_KEY')
     if not api_key:
         raise RuntimeError('LLM_API_KEY 未配置，无法调用大模型。')
 
@@ -113,7 +113,7 @@ def _generate_rag_answer(user_query: str, context_text: str) -> str:
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': user_prompt}
         ],
-        temperature=0.2,
+        temperature=0.1,
         timeout=90
     )
 

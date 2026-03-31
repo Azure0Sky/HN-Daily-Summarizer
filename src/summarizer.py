@@ -5,10 +5,10 @@ from typing import Optional
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
-# CHAT_MODEL_NAME = os.getenv('CHAT_MODEL_NAME', 'Qwen/Qwen3.5')
-# LLM_BASE_URL = os.getenv('LLM_BASE_URL', 'https://chatapi.starlake.tech/v1')
-CHAT_MODEL_NAME = os.getenv('OR_CHAT_MODEL_NAME', 'qwen/qwen3.6-plus-preview:free')
-LLM_BASE_URL = os.getenv('OR_LLM_BASE_URL', 'https://openrouter.ai/api/v1')
+CHAT_MODEL_NAME = os.getenv('CHAT_MODEL_NAME', 'Qwen/Qwen3.5')
+LLM_BASE_URL = os.getenv('LLM_BASE_URL', 'https://chatapi.starlake.tech/v1')
+# CHAT_MODEL_NAME = os.getenv('OR_CHAT_MODEL_NAME', 'qwen/qwen3.6-plus-preview:free')
+# LLM_BASE_URL = os.getenv('OR_LLM_BASE_URL', 'https://openrouter.ai/api/v1')
 
 
 class SummaryReport(BaseModel):
@@ -41,8 +41,8 @@ def generate_summary(title, content, comments, api_key):
 
     system_prompt = """
     你是一个资深的科技分析师。你的任务是深度阅读 Hacker News 的文章和评论，并提取核心洞察。
-    提取的信息必须使用中文严格映射到提供的json结构化模式中。
-    
+    提取的信息必须使用中文严格映射到提供的结构化模式中。
+
     分析原则：
     1. 剔除废话，保留硬核技术细节或商业逻辑。
     2. 基于给定的文本进行提取，严禁产生幻觉或编造外部信息。
