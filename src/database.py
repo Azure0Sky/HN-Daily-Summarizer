@@ -7,7 +7,7 @@ from chromadb.utils import embedding_functions
 
 @lru_cache(maxsize=1)
 def get_chroma_collection():
-    chroma_port = int(os.getenv('CHROMA_SERVER_PORT', 80010))
+    chroma_port = int(os.getenv('CHROMA_SERVER_PORT', 33000))
     # Connect to local ChromaDB server
     # port should match the one configured in systemd service file for the ChromaDB service
     chroma_client = chromadb.HttpClient(host='127.0.0.1', port=chroma_port)
