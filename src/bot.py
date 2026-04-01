@@ -6,6 +6,7 @@ from typing import Any, Dict, Tuple, List, cast
 
 from openai import OpenAI, AsyncOpenAI
 from telegram import Update
+from telegram.error import BadRequest
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 
 from tools import get_tool_schemas, run_tool_call
@@ -180,7 +181,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     async for output in _agent_loop(messages):
-        await processing_msg.edit_text(output, parse_mode='Markdown')
+        try:
+            await processing_msg.edit_text(output, parse_mode='Markdown')
+
+        except BadRequest as e:
+            if "Can't parse entities" in str(e):
+                logging.warning(f'Failed to parse Markdown entities: {e}. Falling back to plain text.')
+                await processing_msg.edit_text(output)
+            else:
+                raise
 
 
 # Run in DO server
