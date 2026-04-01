@@ -1,5 +1,7 @@
 import json
 import logging
+import zoneinfo
+from datetime import datetime
 from functools import lru_cache
 from typing import Any, Dict, List, Tuple
 
@@ -16,8 +18,10 @@ SEARCH_HN_DATABASE_TOOL: Dict[str, Any] = {
     'function': {
         'name': 'search_hn_database',
         'description': (
-            'Searches the Hacker News digest vector database and returns '
-            'relevant context chunks with date/title metadata for grounded answers.'
+            'Searches the Hacker News (HN) digest vector database and returns '
+            'relevant context chunks with date/title metadata for grounded answers.\n'
+            '[Include]: Only recently scraped HN tech news, and community discussions are included.\n'
+            '[Not Include]: Not include politics, entertainment, or life news, etc.'
         ),
         'parameters': {
             'type': 'object',
@@ -35,8 +39,28 @@ SEARCH_HN_DATABASE_TOOL: Dict[str, Any] = {
 }
 
 
+GET_CURRENT_TIME_TOOL: Dict[str, Any] = {
+    'type': 'function',
+    'function': {
+        'name': 'get_current_time',
+        'description': (
+            'Returns the current datetime anchor in UTC+8, '
+            'for converting relative-time expressions to absolute dates.'
+            '[Important]: For relative-time requests (e.g., yesterday / recent two days), '
+            'must call this first and convert them to absolute dates.\n'
+        ),
+        'parameters': {
+            'type': 'object',
+            'properties': {},
+            'additionalProperties': False,
+        },
+    },
+}
+
+
 # Tool route handlers map: tool name to execution function
 TOOL_HANDLERS = {
+    'get_current_time': lambda **args: get_current_time(),
     'search_hn_database': lambda **args: search_hn_database(args.get('query', '')),
 }
 
@@ -91,6 +115,17 @@ def _retrieve_relevant_context(user_query: str) -> Tuple[str, bool]:
     return _truncate_context(merged_context), True
 
 
+def get_current_time() -> str:
+    """Return the current datetime anchor in UTC+8 for converting relative-time expressions to absolute dates."""
+    current_time = datetime.now(zoneinfo.ZoneInfo('Asia/Shanghai'))
+
+    weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+    weekday_str = weekdays[current_time.weekday()]
+    
+    formatted_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
+    return f"当前系统标准时间: {formatted_time} ({weekday_str})"
+
+
 def search_hn_database(query: str) -> str:
     """Tool entrypoint: search HN digest vector DB and return serialized retrieval results."""
     normalized_query = query.strip()
@@ -122,7 +157,7 @@ def search_hn_database(query: str) -> str:
 
 @lru_cache(maxsize=1)
 def get_tool_schemas() -> List[Dict[str, Any]]:
-    return [SEARCH_HN_DATABASE_TOOL]
+    return [GET_CURRENT_TIME_TOOL, SEARCH_HN_DATABASE_TOOL]
 
 
 def run_tool_call(tool_name: str, arguments: Dict[str, Any]) -> str:
