@@ -112,10 +112,14 @@ async def _agent_loop(messages):
                 function = getattr(tool_call, 'function', None)
                 tool_name = getattr(function, 'name', '')
                 raw_arguments = getattr(function, 'arguments', '{}')
+            
+                logging.info(f'loop {turn_count} - Processing tool call: {tool_name}')
 
                 try:
                     parsed_arguments = _normalize_tool_arguments(raw_arguments or '{}')
                 except Exception as e:
+                    logging.warning(f'Failed to parse tool arguments for tool "{tool_name}" with raw args: {raw_arguments}')
+
                     error_feedback = f'工具调用参数解析或校验失败：{e}。请修正参数格式后重试。'
                     messages.append({
                         'role': 'tool',
