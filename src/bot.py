@@ -2,7 +2,10 @@ import os
 import json
 import time
 import logging
+import zoneinfo
+import textwrap
 from pathlib import Path
+from datetime import datetime
 from functools import lru_cache
 from typing import Any, Dict, cast
 
@@ -34,12 +37,19 @@ SYSTEM_PROMPT = """
 你是一个严谨的中文助手。
 在处理用户问题时，请严格遵守以下决策：
 1. 根据用户请求，判断用户意图，选择合适的工具辅助你的回答。
-2. 若问题包含相对时间表达（如：昨天、这两天、最近、本周等），必须首先获取时间锚点，再将相对时间转换成明确日期，然后才进行下一步。
-3. 若问题与 Hacker News 社区内容相关，必须优先进行数据库检索，并严格遵循返回结果进行回答；如果检索没有结果，请明确回复：“根据我目前的检索，无法提供准确答案”。
-4. 若问题需要外部实时信息、公开网页事实或超出 HN 数据库范围，可调用工具进行联网检索；使用工具返回的摘要证据辅助回答，禁止编造。
-5. 使用任何检索工具后，回答末尾需附“参考来源”小节。
-6. 使用 Markdown 格式，回答简洁清晰。
+2. 若问题与 Hacker News 社区内容相关，必须优先进行数据库检索，并严格遵循返回结果进行回答；如果检索没有结果，请明确回复：“根据我目前的检索，无法提供准确答案”。
+3. 若问题需要外部实时信息、公开网页事实或超出 HN 数据库范围，可调用工具进行联网检索；使用工具返回的摘要证据辅助回答，禁止编造。
+4. 若使用任何检索工具，回答末尾需附“参考来源”小节。
+5. 使用 Markdown 格式，回答简洁清晰。
 """.strip()
+
+
+def _get_current_time() -> str:
+    """Return the current datetime in UTC+8."""
+    current_time = datetime.now(zoneinfo.ZoneInfo('Asia/Shanghai'))
+
+    formatted_time = current_time.strftime('%Y-%m-%d %H:%M %A')
+    return f"当前系统时间: {formatted_time} (UTC+8)"
 
 
 @lru_cache(maxsize=1)
@@ -272,9 +282,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     micro_compact_history(history)  # in-place
 
     history.append({'role': 'user', 'content': user_query})
+    system_prompt = textwrap.dedent(f"""
+    [环境信息]
+    当前系统时间：{_get_current_time()}
+
+    [核心指令]
+    {SYSTEM_PROMPT}
+    """)
 
     messages = [
-        {'role': 'system', 'content': SYSTEM_PROMPT},
+        {'role': 'system', 'content': system_prompt},
         *history
     ]
 
@@ -317,3 +334,29 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# from datetime import datetime
+# import pytz # 建议明确时区，比如你的服务器在 DO，但用户可能在中国
+
+# async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     # ... 前置代码 ...
+
+#     # 1. 获取当前时间（精确到分钟或天即可，没必要精确到秒）
+#     # 假设你的目标用户主要关注北京时间 (UTC+8) 的 HN 总结
+#     tz = pytz.timezone('Asia/Shanghai')
+#     current_time_str = datetime.now(tz).strftime('%Y-%m-%d %H:%M %A')
+
+#     # 2. 动态组装包含时间的 System Prompt
+#     dynamic_system_prompt = f"""
+#     [环境信息]
+#     当前系统时间：{current_time_str}
+    
+#     [核心指令]
+#     {SYSTEM_PROMPT}
+#     """
+
+#     # 3. 压入上下文 (注意前文讨论的 History 隔离与压缩逻辑)
+#     messages = [{'role': 'system', 'content': dynamic_system_prompt}] + history + [{'role': 'user', 'content': user_query}]
+    
+#     # ... 传给 LLM ...
