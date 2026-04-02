@@ -1,6 +1,8 @@
 import os
 import json
+import time
 import logging
+from pathlib import Path
 from functools import lru_cache
 from typing import Any, Dict, cast
 
@@ -23,6 +25,10 @@ LLM_BASE_URL = os.getenv('LLM_BASE_URL', 'https://chatapi.starlake.tech/v1')
 # LLM_BASE_URL = os.getenv('OR_LLM_BASE_URL', 'https://openrouter.ai/api/v1')
 
 MAX_USER_QUERY_CHARS = 100
+CHAT_HISTORY_KEY = 'history'
+
+TRANSCRIPT_DIR = Path("./transcripts")
+TRANSCRIPT_DIR.mkdir(exist_ok=True)
 
 SYSTEM_PROMPT = """
 你是一个严谨的中文助手。
@@ -74,6 +80,63 @@ def _normalize_tool_arguments(raw_arguments: str) -> Dict[str, Any]:
     return parsed
 
 
+def micro_compact_history(history: list, keep_recent: int = 1):
+    """
+    Clean up the conversation history by keeping only the most recent N tool calls 
+    and replacing older ones with a placeholder.
+    In-place modification of the history list for now.
+    """
+    tool_results_count = 0
+
+    # Iterate through history in reverse to keep the most recent tool calls intact, and compact older ones.
+    for msg in reversed(history):
+        if msg.get('role') == 'tool':
+            tool_results_count += 1
+            if tool_results_count > keep_recent:
+                # For older tool calls beyond the most recent N, replace content with a placeholder to save space.
+                tool_name = msg.get('tool_name', 'unknown_tool')
+                msg['content'] = f'[执行历史工具 {tool_name} 调用，结果已折叠]'
+
+
+async def auto_compact_history(chat_id: str, history: list):
+    # TODO: Apply this strategy when history exceeds certain token count
+    chat_transcript_dir = TRANSCRIPT_DIR / chat_id
+    chat_transcript_dir.mkdir(exist_ok=True)
+
+    # Write the full history to a timestamped transcript file for this chat session
+    chat_transcript_dir.joinpath(f'{int(time.time())}.jsonl').write_text(
+        '\n'.join(json.dumps(msg, ensure_ascii=False) for msg in history),
+        encoding='utf-8'
+    )
+    
+    # Strip tool call results from older messages
+    pure_dialogue = [m for m in history if m['role'] in {'user', 'assistant'} and not m.get('tool_calls')]
+    conversation_text = json.dumps(pure_dialogue, ensure_ascii=False)
+
+    client = _get_async_LLM_client()
+    summary_prompt = '请用简练的中文总结以下对话的上下文、用户的核心关注点以及已经得出的结论。禁止包含任何客套话。'
+
+    try:
+        response = await client.chat.completions.create(
+            model=CHAT_MODEL_NAME,
+            messages=[
+                {'role': 'system', 'content': summary_prompt},
+                {'role': 'user', 'content': conversation_text}
+            ],
+            temperature=0.1
+        )
+        summary = response.choices[0].message.content
+
+        return [
+            {'role': 'user', 'content': f'[历史对话已压缩]\n此前对话总结：{summary}'},
+            {'role': 'assistant', 'content': '已了解之前的上下文。请继续提问。'}
+        ]
+
+    except Exception as e:
+        logging.exception(f'Auto compaction failed: {e}')
+        # return history[-10:]
+
+
 async def _agent_loop(messages):
     """Core agentic loop: send messages to LLM, handle tool calls, and yield final answer."""
 
@@ -123,11 +186,11 @@ async def _agent_loop(messages):
                 except Exception as e:
                     logging.warning(f'Failed to parse tool arguments for tool "{tool_name}" with raw args: {raw_arguments}')
 
-                    error_feedback = f'工具调用参数解析或校验失败：{e}。请修正参数格式后重试。'
                     messages.append({
                         'role': 'tool',
                         'tool_call_id': tool_call.id,
-                        'content': error_feedback,
+                        'tool_name': tool_name,
+                        'content': f'工具调用参数解析或校验失败：{e}。请修正参数格式后重试。',
                     })
                     continue
 
@@ -135,6 +198,7 @@ async def _agent_loop(messages):
                 messages.append({
                     'role': 'tool',
                     'tool_call_id': tool_call.id,
+                    'tool_name': tool_name,
                     'content': str(tool_output),
                 })
 
@@ -157,15 +221,40 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def end_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /end command and clear current chat conversation history."""
+    if update.message is None:
+        logging.warning('Received /end without message payload.')
+        return
+
+    chat_data = context.chat_data
+    if chat_data is None:
+        logging.warning('chat_data is unavailable when handling /end.')
+        await update.message.reply_text('当前会话上下文不可用，暂时无法清理历史。')
+        return
+
+    if CHAT_HISTORY_KEY in chat_data:
+        chat_data[CHAT_HISTORY_KEY] = []
+    await update.message.reply_text('🧹 对话历史已清空，我们将开始全新的对话。')
+
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle user text with tool-calling (HN retrieval + normal chat)."""
     if update.message is None:
         logging.warning('Received update without message payload.')
         return
 
+    chat_id = str(update.message.chat_id)
+
     user_query = (update.message.text or '').strip()
     if not user_query:
         await update.message.reply_text('我收到了空消息，请输入您的咨询。')
+        return
+
+    chat_data = context.chat_data
+    if chat_data is None:
+        logging.warning('chat_data is unavailable when handling user message.')
+        await update.message.reply_text('⚠️ 当前会话上下文不可用，请稍后重试。')
         return
 
     if len(user_query) > MAX_USER_QUERY_CHARS:
@@ -176,9 +265,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     processing_msg = await update.message.reply_text('🤖 Agent 正在思考中...')
 
+    if CHAT_HISTORY_KEY not in chat_data:
+        chat_data[CHAT_HISTORY_KEY] = []
+    history = chat_data[CHAT_HISTORY_KEY]
+
+    micro_compact_history(history)  # in-place
+
+    history.append({'role': 'user', 'content': user_query})
+
     messages = [
         {'role': 'system', 'content': SYSTEM_PROMPT},
-        {'role': 'user', 'content': user_query},
+        *history
     ]
 
     async for output in _agent_loop(messages):
@@ -194,6 +291,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 raise
 
+    chat_data[CHAT_HISTORY_KEY] = messages[1:]  # Exclude system prompt from stored history
+
 
 # Run in DO server
 def main():
@@ -207,6 +306,7 @@ def main():
 
     # Register command and message handlers
     application.add_handler(CommandHandler('start', start_command))
+    application.add_handler(CommandHandler('end', end_command))
     # Capture all text messages that are not commands and pass them to handle_message
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
