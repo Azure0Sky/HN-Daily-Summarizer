@@ -78,7 +78,7 @@ async def _agent_loop(messages):
     """Core agentic loop: send messages to LLM, handle tool calls, and yield final answer."""
 
     # Limit the number of turns to prevent infinite loops of tool calling without resolution.
-    MAX_TURNS = 5
+    MAX_TURNS = 7
     turn_count = 0
 
     client = _get_async_LLM_client()
@@ -157,43 +157,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /test command for quick checks."""
-    if update.message is None:
-        logging.warning('Received /test without message payload.')
-        return
-
-    test_md = """
-根据搜索结果，小米集团最新的大模型系列名为 MiMo 系列。
-
-## 小米 MiMo 大模型系列
-
-目前小米已发布的主要大模型包括：
-
-| 模型名称 | 发布时间 | 特点 |
-|---------|---------|------|
-| MiMo-V2-Flash | 2025年12月17日 | 基础语言模型，超高速响应，已全面开源 |
-| MiMo-V2-Pro | 2025年3月 | 在Text Arena评测中排名全球第五，仅次于Anthropic、OpenAI、Google；在OpenRouter平台周榜位列第一，市占率超30% |
-| MiMo-V2-Omni | 2025年 | 全模态模型 |
-| MiMo-Embodied-7B | 2025年 | 跨具身视觉语言模型，适用于自动驾驶和具身AI |
-
-## 最新进展
-
-根据雷军2025年3月31日发布的消息，MiMo-V2-Pro 在权威评测榜单 Text Arena 的 Model Rank 维度上跻身全球前五，是小米目前性能最强的自研大模型。
-
----
-
-### 参考来源
-1. 电商派 - 雷军：小米MiMo-V2-Pro大模型跻身全球前五
-2. CNMO科技 - 小米MiMo-V2-Pro获OpenRouter周榜第一
-3. IT之家 - 雷军公布小米MiMo-V2-Pro大模型最新"战绩"
-4. Hugging Face - XiaomiMiMo官方模型仓库
-    """
-
-    text, entities = convert(test_md)
-    await update.message.reply_text(text, entities=[e.to_dict() for e in entities])
-
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle user text with tool-calling (HN retrieval + normal chat)."""
     if update.message is None:
@@ -220,9 +183,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     async for output in _agent_loop(messages):
         try:
-            # text, entities = convert(output)
-            # await processing_msg.edit_text(text, entities=[e.to_dict() for e in entities])
-            await processing_msg.edit_text(output, parse_mode='Markdown')
+            text, entities = convert(output)
+            await processing_msg.edit_text(text, entities=[cast(Any, e.to_dict()) for e in entities])
+            # await processing_msg.edit_text(output, parse_mode='Markdown')
 
         except BadRequest as e:
             if "Can't parse entities" in str(e):
@@ -246,8 +209,6 @@ def main():
     application.add_handler(CommandHandler('start', start_command))
     # Capture all text messages that are not commands and pass them to handle_message
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-    application.add_handler(CommandHandler('test', test_command))
 
     logging.info('Starting bot in Long Polling mode...')
     # Start the bot, which will run indefinitely until manually stopped.
