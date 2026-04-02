@@ -334,29 +334,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# from datetime import datetime
-# import pytz # 建议明确时区，比如你的服务器在 DO，但用户可能在中国
-
-# async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     # ... 前置代码 ...
-
-#     # 1. 获取当前时间（精确到分钟或天即可，没必要精确到秒）
-#     # 假设你的目标用户主要关注北京时间 (UTC+8) 的 HN 总结
-#     tz = pytz.timezone('Asia/Shanghai')
-#     current_time_str = datetime.now(tz).strftime('%Y-%m-%d %H:%M %A')
-
-#     # 2. 动态组装包含时间的 System Prompt
-#     dynamic_system_prompt = f"""
-#     [环境信息]
-#     当前系统时间：{current_time_str}
-    
-#     [核心指令]
-#     {SYSTEM_PROMPT}
-#     """
-
-#     # 3. 压入上下文 (注意前文讨论的 History 隔离与压缩逻辑)
-#     messages = [{'role': 'system', 'content': dynamic_system_prompt}] + history + [{'role': 'user', 'content': user_query}]
-    
-#     # ... 传给 LLM ...
