@@ -110,6 +110,7 @@ def micro_compact_history(history: list, keep_recent: int = 1):
 
 async def auto_compact_history(chat_id: str, history: list):
     # TODO: Apply this strategy when history exceeds certain token count
+
     chat_transcript_dir = TRANSCRIPT_DIR / chat_id
     chat_transcript_dir.mkdir(exist_ok=True)
 
@@ -171,7 +172,7 @@ async def _agent_loop(messages):
             )
 
             assistant_msg = response.choices[0].message
-            messages.append(assistant_msg)
+            messages.append(assistant_msg.model_dump(exclude_unset=True))
 
             if not assistant_msg.tool_calls:
                 content = assistant_msg.content

@@ -94,4 +94,4 @@ async def receive_daily_news(payload: DailyDigestPayload):
 
 if __name__ == '__main__':
     api_port = int(os.getenv('FASTAPI_SERVER_PORT', 33001))
-    uvicorn.run(app, host='127.0.0.1', port=api_port)  # listen on all interfaces
+    uvicorn.run(app, host='127.0.0.1', port=api_port)

@@ -1,5 +1,6 @@
 import os
 import logging
+import textwrap
 from typing import Optional
 
 from openai import OpenAI
@@ -39,16 +40,16 @@ def generate_summary(title, content, comments, api_key):
     joined_comments = "\n---\n".join(comments)
     safe_comments = _truncate_text(joined_comments, 3000)
 
-    system_prompt = """
+    system_prompt = textwrap.dedent("""
     你是一个资深的科技分析师。你的任务是深度阅读 Hacker News 的文章和评论，并提取核心洞察。
     提取的信息必须使用中文严格映射到提供的结构化模式中。
 
     分析原则：
     1. 剔除废话，保留硬核技术细节或商业逻辑。
     2. 基于给定的文本进行提取，严禁产生幻觉或编造外部信息。
-    """
+    """)
 
-    user_content = f"""
+    user_content = textwrap.dedent(f"""
     Title: {title}
     
     Article Content:
@@ -56,7 +57,7 @@ def generate_summary(title, content, comments, api_key):
     
     Hacker News Comments:
     {safe_comments}
-    """
+    """)
 
     try:
         # response = client.chat.completions.create(

@@ -12,7 +12,7 @@ from push_service import push_to_do_server
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-def format_summary_markdown(original_title, summary):
+def _format_summary_markdown(original_title, summary):
     return (
         f"**【{original_title}】**\n"
         f"**【{summary.translated_title}】**\n"
@@ -67,7 +67,7 @@ def main():
                 )
 
                 # 3.1 Keep markdown output for Telegram.
-                final_reports.append(format_summary_markdown(story_title, summary))
+                final_reports.append(_format_summary_markdown(story_title, summary))
 
                 # 3.2 Keep structured output for FastAPI ingestion. 
                 # Must align with NewsSummaryReport in src/recv_service.py
