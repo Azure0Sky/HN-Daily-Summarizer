@@ -1,9 +1,7 @@
-import os
 import logging
 from typing import Any, cast
-from pathlib import Path
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import ContextTypes
 from telegramify_markdown import convert
 
 from src.config.constants import TG_CHAT_HISTORY_KEY

@@ -1,6 +1,6 @@
 import logging
 import src.interfaces.tg_bot.handlers as handlers
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, PicklePersistence, filters
 from src.config.settings import settings
 
 
@@ -9,7 +9,8 @@ def run_tg_bot():
         logging.critical('Missing TG_BOT_TOKEN environment variable in settings.')
         return
 
-    application = ApplicationBuilder().token(settings.tg_bot_token).build()
+    persistence = PicklePersistence(filepath='bot_chat_data.pkl')
+    application = ApplicationBuilder().token(settings.tg_bot_token).persistence(persistence).build()
 
     application.add_handler(CommandHandler('start', handlers.start_command))
     application.add_handler(CommandHandler('end', handlers.end_command))
