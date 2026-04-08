@@ -1,18 +1,22 @@
-import requests
-import trafilatura
-import html
-import logging
 import re
 import time
+import html
+import logging
+import hashlib
+import requests
+import trafilatura
+from datetime import date
 
-HN_API_BASE = 'https://hacker-news.firebaseio.com/v0'  # From https://github.com/hackernews/api
+from src.infrastructure.database import get_chroma_collection
+from src.config.constants import HN_API_BASE, HN_DIGEST_COLLECTION_NAME
+
 REQUEST_TIMEOUT = 10
 
 
-def get_top_stories(limit=10):
+def fetch_hn_top_stories(limit: int = 10) -> list[dict]:
     """Get top stories from Hacker News. Returns a list of story dicts."""
     try:
-        # Get up to 500 top story IDs
+        # Get up to 10 top story IDs
         response = requests.get(f'{HN_API_BASE}/topstories.json', timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
         story_ids = response.json()[:limit]
@@ -52,7 +56,7 @@ def extract_article_text(url):
         return '[Extraction Error]'
 
 
-def clean_html(raw_html):
+def _clean_html(raw_html):
     """Clean the simple HTML tags in HN comments"""
     if not raw_html:
         return ''
@@ -63,7 +67,7 @@ def clean_html(raw_html):
     return text.strip()
 
 
-def get_top_comments(story_id, kids, limit=10, fetch_kids=True, kids_num=3):
+def _get_top_comments(story_id, kids, limit=10, fetch_kids=True, kids_num=3):
     """
     Get the top comments and their replies optionally.
     HN comments are tree-structured. Fetch 'limit' comments and their following replies if fetch_kids is True.
@@ -81,14 +85,14 @@ def get_top_comments(story_id, kids, limit=10, fetch_kids=True, kids_num=3):
                 comment_data = resp.json()
                 # Ensure the node is not deleted and contains text
                 if comment_data and not comment_data.get('deleted') and 'text' in comment_data:
-                    clean_text = clean_html(comment_data['text'])
+                    clean_text = _clean_html(comment_data['text'])
                     # Avoid single comments that are too long and consume too many Tokens
                     comments.append(clean_text[:500] + ('...' if len(clean_text) > 500 else ''))
 
                     # Optionally fetch one level of replies to the comment
                     if fetch_kids and 'kids' in comment_data:
                         # Only fetch a few replies to control token cost, and do not recursively fetch deeper levels
-                        kids_comments = get_top_comments(story_id, comment_data['kids'], limit=kids_num, fetch_kids=False)
+                        kids_comments = _get_top_comments(story_id, comment_data['kids'], limit=kids_num, fetch_kids=False)
                         comments.extend(kids_comments)
 
         except Exception as e:
@@ -99,14 +103,14 @@ def get_top_comments(story_id, kids, limit=10, fetch_kids=True, kids_num=3):
     return comments
 
 
-def fetch_story_content(story):
+def fetch_story_content(story: dict) -> dict:
     """Assemble the content for a story, including the main text and top comments."""
     url = story.get('url')
     kids = story.get('kids', [])
 
     content = {
         'text': '',
-        'comments': get_top_comments(story['id'], kids, limit=5)
+        'comments': _get_top_comments(story['id'], kids, limit=5)
     }
 
     if url:
@@ -119,16 +123,37 @@ def fetch_story_content(story):
         logging.info(f'{story["id"]}: Processing internal HN post (Ask HN)')
         raw_text = story.get('text', '')
         if raw_text:
-            content['text'] = clean_html(raw_text)
+            content['text'] = _clean_html(raw_text)
         else:
             content['text'] = '[No text content provided in this post]'
             
     return content
 
 
-def get_item_raw_data(item_id):
-    try:
-        resp = requests.get(f'{HN_API_BASE}/item/{item_id}.json', timeout=REQUEST_TIMEOUT)
-        return resp.json() if resp.status_code == 200 else {}
-    except:
-        return {}
+def ingest_to_vector_db(digest_date: date, summaries):
+    documents, metadatas, ids = [], [], []
+
+    for news in summaries:
+        text_content = (
+            f'原标题: {news.original_title}\n'
+            f'中译标题: {news.translated_title}\n'
+            f'核心要点: {news.core_point}\n'
+            f'社区观点: {news.community_views}'
+        )
+        documents.append(text_content)
+        
+        metadatas.append({
+            'date': digest_date.isoformat(),
+            'source': 'HackerNews',
+            'title': news.original_title
+        })
+
+        # Generate a unique ID for each document based on the date and original title
+        unique_str = f'{digest_date}-{news.original_title}'.encode('utf-8')
+        doc_id = hashlib.md5(unique_str).hexdigest()
+        ids.append(doc_id)
+
+    collection = get_chroma_collection(HN_DIGEST_COLLECTION_NAME)
+    collection.upsert(documents=documents, metadatas=metadatas, ids=ids)
+    
+    return len(documents)

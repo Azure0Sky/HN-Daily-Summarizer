@@ -1,15 +1,39 @@
-import os
-import time
 import logging
+import requests
+import time
 from datetime import date
 from concurrent.futures import ThreadPoolExecutor
 
-from fetcher import get_top_stories, fetch_story_content
-from summarizer import generate_summary
-from notifier import send_telegram_message
-from push_service import push_to_do_server
+from src.config.constants import API_KEY_NAME
+from src.config.settings import settings
+from src.rag.ingestion import fetch_hn_top_stories, fetch_story_content
+from src.agent.engine import generate_summary_report
+from src.infrastructure.telegram_client import send_telegram_message
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def _push_to_do_server(digest_date: date, summaries: list) -> bool:
+    if settings.do_server_webhook_url is None:
+        logging.critical('DO server webhook URL is not configured. Skipping push to DO server.')
+        return False
+
+    payload = {
+        'date': digest_date.isoformat(),
+        'summaries': summaries
+    }
+    headers = {
+        'Content-Type': 'application/json',
+        API_KEY_NAME: settings.do_api_secret
+    }
+
+    try:
+        response = requests.post(settings.do_server_webhook_url, json=payload, headers=headers, timeout=15)
+        response.raise_for_status()
+        logging.info(f'DO server push succeeded with status {response.status_code}.')
+        return True
+
+    except Exception as e:
+        logging.error(f'Failed to push to DO server: {e}')
+        return False
 
 
 def _format_summary_markdown(original_title, summary):
@@ -21,26 +45,16 @@ def _format_summary_markdown(original_title, summary):
     )
 
 
-# Run in Github Actions
-def main():
-    # 1. Check environment variables
-    llm_key = os.getenv('LLM_API_KEY')
-    # llm_key = os.getenv('OR_LLM_API_KEY')
+def _format_tg_reports(reports: list) -> str:
+    return '🔥 == Hacker News Daily Digest ==\n\n' + '\n\n---\n\n'.join(reports)
 
-    tg_token = os.getenv('TG_BOT_TOKEN')
-    tg_chat_id = os.getenv('TG_CHAT_ID')
-    do_webhook_url = os.getenv('DO_SERVER_WEBHOOK_URL')
-    do_api_secret = os.getenv('DO_API_SECRET')
 
-    if not all([llm_key, tg_token, tg_chat_id, do_api_secret]):
-        logging.error('Missing critical environment variables. Check GitHub Secrets.')
-        return
-
+def run_daily_work():
     logging.info('Starting HN Daily Summarizer Workflow...')
 
     try:
-        # 2. Fetch data: Only fetch Top 10 to control Token cost and execution time
-        top_stories = get_top_stories(limit=10)
+        # 1. Fetch data: Only fetch Top 10 to control Token cost and execution time
+        top_stories = fetch_hn_top_stories(limit=10)
         if not top_stories:
             logging.warning('No stories fetched. Exiting.')
             return
@@ -48,7 +62,7 @@ def main():
         final_reports = []
         structured_summaries = []
 
-        # 3. Process each story
+        # 2. Process each story
         for story in top_stories:
             story_title = story.get('title', '[Untitled]')
             logging.info(f"\t> Processing story: {story_title}")
@@ -59,17 +73,16 @@ def main():
 
                 # Call the LLM to generate a summary
                 # Pass in the title, fetched content, and comments
-                summary = generate_summary(
+                summary = generate_summary_report(
                     title=story_title,
                     content=content_data['text'],
                     comments=content_data['comments'],
-                    api_key=llm_key
                 )
 
-                # 3.1 Keep markdown output for Telegram.
+                # 2.1 Keep markdown output for Telegram.
                 final_reports.append(_format_summary_markdown(story_title, summary))
 
-                # 3.2 Keep structured output for FastAPI ingestion. 
+                # 2.2 Keep structured output for FastAPI ingestion. 
                 # Must align with NewsSummaryReport in src/recv_service.py
                 structured_summaries.append({
                     'original_title': story_title,
@@ -84,20 +97,13 @@ def main():
                 logging.error(f"Failed to process story {story.get('id')}: {e}")
                 continue
 
-        # 4. Assemble report and dispatch to Telegram + DO server in parallel
+        # 3. Assemble report and dispatch to Telegram + DO server in parallel
         if final_reports:
-            daily_digest = '🔥 == Hacker News Daily Digest ==\n\n' + '\n\n---\n\n'.join(final_reports)
+            daily_digest = _format_tg_reports(final_reports)
 
             with ThreadPoolExecutor(max_workers=2) as executor:
-                # Submit both outbound tasks together so they can run concurrently.
-                tg_future = executor.submit(send_telegram_message, daily_digest, tg_token, tg_chat_id)
-                do_future = executor.submit(
-                    push_to_do_server,
-                    digest_date=date.today(),
-                    summaries=structured_summaries,
-                    webhook_url=do_webhook_url,
-                    api_secret=do_api_secret
-                )
+                tg_future = executor.submit(send_telegram_message, daily_digest)
+                do_future = executor.submit(_push_to_do_server, digest_date=date.today(), summaries=structured_summaries)
 
                 tg_success = tg_future.result()
                 if tg_success:
@@ -116,7 +122,3 @@ def main():
 
     except Exception as e:
         logging.critical(f'Critical error in workflow: {e}')  # TODO: May send message to Telegram if this happens
-
-
-if __name__ == "__main__":
-    main()
