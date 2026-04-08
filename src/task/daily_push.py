@@ -39,10 +39,10 @@ def _push_to_do_server(digest_date: date, summaries: list) -> bool:
 
 def _format_summary_markdown(original_title, summary):
     return (
-        f"**【{original_title}】**\n"
-        f"**【{summary.translated_title}】**\n"
-        f"- 📰 **核心要点**: {summary.core_point}\n"
-        f"- 💬 **社区观点**: {summary.community_views}"
+        f'**【{original_title}】**\n'
+        f'**【{summary.translated_title}】**\n'
+        f'- 📰 **核心要点**: {summary.core_point}\n'
+        f'- 💬 **社区观点**: {summary.community_views}'
     )
 
 
