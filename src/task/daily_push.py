@@ -109,16 +109,20 @@ def run_daily_work():
                 do_future = executor.submit(_push_to_do_server, digest_date=date.today(), summaries=structured_summaries)
 
                 tg_success = tg_future.result()
+                err_msg = ''
                 if tg_success:
                     logging.info('Successfully pushed daily digest to Telegram.')
                 else:
-                    logging.warning('Failed to push daily digest to Telegram.')
+                    err_msg = 'Failed to push daily digest to Telegram.'
 
                 do_success = do_future.result()
                 if do_success:
                     logging.info('Successfully pushed structured digest to DO server.')
                 else:
-                    logging.warning('Structured digest was not pushed to DO server.')
+                    err_msg += '\nFailed to push structured digest to DO server.'
+
+                if err_msg:
+                    raise Exception(err_msg.strip())
 
         else:
             logging.warning('No summaries generated today.')
