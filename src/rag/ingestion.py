@@ -30,7 +30,7 @@ def fetch_hn_top_stories(limit: int = 10) -> list[dict]:
         return stories
 
     except Exception as e:
-        logging.error(f"Failed to fetch top stories: {e}")
+        logging.error(f'Failed to fetch top stories: {e}')
         return []
 
 
@@ -69,7 +69,7 @@ def _clean_html(raw_html):
 
 def _get_top_comments(story_id, kids, limit=10, fetch_kids=True, kids_num=3):
     """
-    Get the top comments and their replies optionally.
+    Use HN API to get the top comments and their replies optionally.
     HN comments are tree-structured. Fetch 'limit' comments and their following replies if fetch_kids is True.
     """
     if not kids:
@@ -80,7 +80,7 @@ def _get_top_comments(story_id, kids, limit=10, fetch_kids=True, kids_num=3):
         time.sleep(.5)  # Rate limiting: Avoid hitting API limits, adjust as needed
 
         try:
-            resp = requests.get(f"{HN_API_BASE}/item/{comment_id}.json", timeout=REQUEST_TIMEOUT)
+            resp = requests.get(f'{HN_API_BASE}/item/{comment_id}.json', timeout=REQUEST_TIMEOUT)
             if resp.status_code == 200:
                 comment_data = resp.json()
                 # Ensure the node is not deleted and contains text
@@ -96,7 +96,7 @@ def _get_top_comments(story_id, kids, limit=10, fetch_kids=True, kids_num=3):
                         comments.extend(kids_comments)
 
         except Exception as e:
-            logging.warning(f"Failed to fetch comment {comment_id}: {e}")
+            logging.warning(f'Failed to fetch comment {comment_id}: {e}')
             continue
 
     logging.info(f'Fetched {len(comments)} comments (including some replies) for story {story_id}')

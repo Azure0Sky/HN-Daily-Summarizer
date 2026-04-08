@@ -1,14 +1,15 @@
 import logging
 import requests
-import time
 from datetime import date
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from src.config.constants import API_KEY_NAME
 from src.config.settings import settings
 from src.rag.ingestion import fetch_hn_top_stories, fetch_story_content
 from src.agent.engine import generate_summary_report
 from src.infrastructure.telegram_client import send_telegram_message
+
+MAX_STORY_WORKERS = 3
 
 
 def _push_to_do_server(digest_date: date, summaries: list) -> bool:
@@ -17,7 +18,7 @@ def _push_to_do_server(digest_date: date, summaries: list) -> bool:
         return False
 
     payload = {
-        'date': digest_date.isoformat(),
+        'd': digest_date.isoformat(),
         'summaries': summaries
     }
     headers = {
@@ -49,6 +50,27 @@ def _format_tg_reports(reports: list) -> str:
     return '🔥 == Hacker News Daily Digest ==\n\n' + '\n\n---\n\n'.join(reports)
 
 
+def _process_story(story: dict):
+    story_title = story.get('title', '[Untitled]')
+    logging.info(f'\t> Processing story: {story_title}')
+
+    content_data = fetch_story_content(story=story)
+    summary = generate_summary_report(
+        title=story_title,
+        content=content_data['text'],
+        comments=content_data['comments'],
+    )
+
+    markdown_report = _format_summary_markdown(story_title, summary)
+    structured_summary = {
+        'original_title': story_title,
+        'translated_title': summary.translated_title,
+        'core_point': summary.core_point,
+        'community_views': summary.community_views
+    }
+    return markdown_report, structured_summary
+
+
 def run_daily_work():
     logging.info('Starting HN Daily Summarizer Workflow...')
 
@@ -62,40 +84,21 @@ def run_daily_work():
         final_reports = []
         structured_summaries = []
 
-        # 2. Process each story
-        for story in top_stories:
-            story_title = story.get('title', '[Untitled]')
-            logging.info(f"\t> Processing story: {story_title}")
+        # 2. Process stories with small bounded concurrency to reduce total runtime.
+        with ThreadPoolExecutor(max_workers=MAX_STORY_WORKERS) as executor:
+            future_to_story = {
+                executor.submit(_process_story, story): story for story in top_stories
+            }
 
-            try:
-                # Fetch the webpage content and top comments
-                content_data = fetch_story_content(story=story)
-
-                # Call the LLM to generate a summary
-                # Pass in the title, fetched content, and comments
-                summary = generate_summary_report(
-                    title=story_title,
-                    content=content_data['text'],
-                    comments=content_data['comments'],
-                )
-
-                # 2.1 Keep markdown output for Telegram.
-                final_reports.append(_format_summary_markdown(story_title, summary))
-
-                # 2.2 Keep structured output for FastAPI ingestion. 
-                # Must align with NewsSummaryReport in src/recv_service.py
-                structured_summaries.append({
-                    'original_title': story_title,
-                    'translated_title': summary.translated_title,
-                    'core_point': summary.core_point,
-                    'community_views': summary.community_views
-                })
-
-                time.sleep(1)  # Rate limiting: Avoid hitting API limits, adjust as needed
-
-            except Exception as e:
-                logging.error(f"Failed to process story {story.get('id')}: {e}")
-                continue
+            for future in as_completed(future_to_story):
+                story = future_to_story[future]
+                try:
+                    markdown_report, structured_summary = future.result()
+                    final_reports.append(markdown_report)
+                    structured_summaries.append(structured_summary)
+                except Exception as e:
+                    logging.error(f'Failed to process story {story.get("id")}: {e}')
+                    continue
 
         # 3. Assemble report and dispatch to Telegram + DO server in parallel
         if final_reports:
@@ -119,6 +122,8 @@ def run_daily_work():
 
         else:
             logging.warning('No summaries generated today.')
+            send_telegram_message('⚠️ 今日未能生成有效的新闻摘要。请检查系统日志以获取详细信息。')
 
     except Exception as e:
-        logging.critical(f'Critical error in workflow: {e}')  # TODO: May send message to Telegram if this happens
+        logging.critical(f'Critical error in workflow: {e}')
+        send_telegram_message('❌ 今日摘要生成过程中发生错误。请检查系统日志以获取详细信息。')

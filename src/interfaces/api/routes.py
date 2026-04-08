@@ -6,10 +6,9 @@ from pydantic import BaseModel
 from fastapi import APIRouter, FastAPI, HTTPException, Security
 from fastapi.security import APIKeyHeader
 
-from rag.ingestion import ingest_to_vector_db
+from src.rag.ingestion import ingest_to_vector_db
 from src.config.settings import settings
-from src.infrastructure.database import get_chroma_collection
-from src.config.constants import HN_DIGEST_COLLECTION_NAME, API_KEY_NAME
+from src.config.constants import API_KEY_NAME
 
 router = APIRouter()
 
@@ -39,7 +38,7 @@ def _verify_api_key(api_key: str = Security(api_key_header)):
     return api_key
 
 
-@router.post('webhook/hn_summary', dependencies=[Security(_verify_api_key)])
+@router.post('/webhook/hn_summary', dependencies=[Security(_verify_api_key)])
 async def receive_daily_hn_summary(payload: DailyDigestPayload):
     logging.info(f'Processing payload for date: {payload.d}, items number: {len(payload.summaries)}')
 

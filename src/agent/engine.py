@@ -145,14 +145,13 @@ async def _agent_loop(messages):
             turn_count += 1
             logging.info(f'--- Agentic loop turn {turn_count} ---')
 
-            response_msg = await async_llm_client.create(
+            assistant_msg = await async_llm_client.create(
                 messages=messages,
                 tools=get_tool_schemas(),
                 temperature=0.2,
                 timeout=480
             )
 
-            assistant_msg = response_msg.message
             messages.append(assistant_msg.model_dump(exclude_unset=True))
 
             if not assistant_msg.tool_calls:

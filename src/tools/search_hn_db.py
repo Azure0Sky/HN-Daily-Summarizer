@@ -1,5 +1,5 @@
 import json
-from registry import registry
+from src.tools.registry import registry
 from src.rag.retriever import retrieve_relevant_context
 
 

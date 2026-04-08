@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     llm_api_key: str
     do_api_secret: str
     do_server_webhook_url: str | None = None
-    
+
     chroma_server_port: int = 33000
     fastapi_server_port: int = 33001
 
