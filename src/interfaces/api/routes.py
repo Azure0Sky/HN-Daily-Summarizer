@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from fastapi import APIRouter, FastAPI, HTTPException, Security
 from fastapi.security import APIKeyHeader
 
-from src.rag.ingestion import ingest_to_vector_db
+from src.rag.ingestion import ingest_daily_news
 from src.config.settings import settings
 from src.config.constants import API_KEY_NAME
 
@@ -43,13 +43,11 @@ async def receive_daily_hn_summary(payload: DailyDigestPayload):
     logging.info(f'Processing payload for date: {payload.d}, items number: {len(payload.summaries)}')
 
     try:
-        inserted_count = ingest_to_vector_db(payload.d, payload.summaries)
-        logging.info(f'Successfully ingested {inserted_count} items into Vector DB.')
-        return {'status': 'success', 'inserted_count': inserted_count}
+        ingested_count = ingest_daily_news(payload.d, payload.summaries)
+        return {'status': 'success', 'ingested_count': ingested_count}
 
     except Exception as e:
-        logging.error(f'Failed to insert into Vector DB: {e}')
-        raise HTTPException(status_code=500, detail='Database ingestion failed.')
+        raise HTTPException(status_code=500, detail=f'Daily summary ingestion failed: {e}.')
 
 
 def run_api_server():

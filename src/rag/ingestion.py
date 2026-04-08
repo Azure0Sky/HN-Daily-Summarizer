@@ -1,14 +1,18 @@
+import os
 import re
 import time
 import html
+import pickle
 import logging
 import hashlib
 import requests
 import trafilatura
 from datetime import date
+from rank_bm25 import BM25Okapi
 
+import src.rag.utils as rag_utils
 from src.infrastructure.database import get_chroma_collection
-from src.config.constants import HN_API_BASE, HN_DIGEST_COLLECTION_NAME
+from src.config.constants import HN_API_BASE, HN_DIGEST_COLLECTION_NAME, BM25_STORE_PATH
 
 REQUEST_TIMEOUT = 10
 
@@ -130,7 +134,56 @@ def fetch_story_content(story: dict) -> dict:
     return content
 
 
-def ingest_to_vector_db(digest_date: date, summaries):
+def _update_bm25_index(new_ids: list, new_documents: list, metadatas: list):
+    """Update the BM25 index with new documents. Load the existing index, append new data, and save it back."""
+    store = {'ids': [], 'raw_docs': [], 'metadatas': [], 'bm25_obj': None}
+    tokenized_corpus = []
+    
+    # Load historical data if exists
+    if os.path.exists(BM25_STORE_PATH):
+        with open(BM25_STORE_PATH, 'rb') as f:
+            store = pickle.load(f)
+            
+    # Append new documents
+    existed_ids = set(store['ids'])
+    for doc_id, doc, meta in zip(new_ids, new_documents, metadatas):
+        if doc_id not in existed_ids:
+            existed_ids.add(doc_id)
+            tokenized_corpus.append(rag_utils.tokenize_for_bm25(doc))
+
+            store['ids'].append(doc_id)
+            store['raw_docs'].append(doc)
+            store['metadatas'].append(meta)
+
+    # Build BM25 object
+    bm25 = BM25Okapi(tokenized_corpus)
+    store['bm25_obj'] = bm25  # cache the BM25 object for retrieval use
+
+    tmp_path = f'{BM25_STORE_PATH}.tmp'
+    try:
+        with open(tmp_path, 'wb') as f:
+            pickle.dump(store, f)
+        os.replace(tmp_path, BM25_STORE_PATH)  # atomic replace to avoid read/write conflicts
+
+    except Exception as e:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)  # clean up temp file on failure
+        raise RuntimeError(f'Failed to update BM25 index: {e}')
+
+
+def _save_to_vector_db(ids, documents, metadatas):
+    """Save the documents to ChromaDB with the given metadata and IDs."""
+    collection = get_chroma_collection(HN_DIGEST_COLLECTION_NAME)
+    collection.upsert(documents=documents, metadatas=metadatas, ids=ids)
+
+
+def _delete_from_vector_db(ids):
+    """Delete documents from ChromaDB by their IDs."""
+    collection = get_chroma_collection(HN_DIGEST_COLLECTION_NAME)
+    collection.delete(ids=ids)
+
+
+def ingest_daily_news(digest_date: date, summaries):
     documents, metadatas, ids = [], [], []
 
     for news in summaries:
@@ -153,7 +206,30 @@ def ingest_to_vector_db(digest_date: date, summaries):
         doc_id = hashlib.md5(unique_str).hexdigest()
         ids.append(doc_id)
 
-    collection = get_chroma_collection(HN_DIGEST_COLLECTION_NAME)
-    collection.upsert(documents=documents, metadatas=metadatas, ids=ids)
-    
+    # Handle dual-write problem
+    try:
+        _save_to_vector_db(ids, documents, metadatas)
+        logging.info(f'Saved {len(documents)} documents to Vector DB for date {digest_date}.')
+    except Exception as e:
+        logging.error(f'Error occurred while saving to vector DB: {e}')
+        raise
+
+    try:
+        _update_bm25_index(ids, documents, metadatas)
+        logging.info(f'Updated BM25 index with {len(documents)} new documents for date {digest_date}.')
+    except Exception as e:
+        logging.error(f'Error occurred while updating BM25 index: {e}')
+
+        # Rollback vector DB entries to maintain consistency
+        try:
+            _delete_from_vector_db(ids)
+            logging.info(f'Rolled back {len(ids)} documents from Vector DB due to BM25 index update failure.')
+        except Exception as rollback_err:
+            logging.critical(
+                f'Error occurred while rolling back vector DB entries: {rollback_err}. '
+                f'Orphaned IDs in Chroma: {ids}'
+            )
+
+        raise RuntimeError(f'Ingestion aborted. Rollback executed. Original error: {e}')
+
     return len(documents)

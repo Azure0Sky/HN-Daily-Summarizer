@@ -1,6 +1,6 @@
 import json
 from src.tools.registry import registry
-from src.rag.retriever import retrieve_relevant_context
+from src.rag.retriever import hybrid_retrieve
 
 
 @registry.register(
@@ -33,7 +33,7 @@ def search_hn_database(query: str) -> str:
             'error': "Argument 'query' must be a non-empty string.",
         }, ensure_ascii=False)
 
-    context_text = retrieve_relevant_context(query)
+    context_text = hybrid_retrieve(query)
     if not context_text:
         result = {
             'ok': True,
