@@ -53,7 +53,7 @@ def send_telegram_message(text):
 
         # Telegram API rate limits: To be safe, add a short delay between messages if sending multiple parts
         time.sleep(1.5) 
-        
+
     except Exception as e:
         logging.error(f"Failed to send Telegram message: {e}\nResponse: {response.text if 'response' in locals() else 'No response'}")
         return False

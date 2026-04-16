@@ -44,7 +44,7 @@ def generate_summary_report(title: str, content: str, comments: str) -> SummaryR
             )
 
             if len(parsed_report.core_point) < 9:
-                logging.warning(f'LLM generated core point is too short, likely invalid. Retrying... Report: {parsed_report.model_dump()}')
+                logging.warning(f'LLM generated core point is too short, likely invalid. Retrying... Title: "{title}", Report: {parsed_report.model_dump()}')
                 messages.append({
                     'role': 'user',
                     'content': '你之前的回答似乎没有正确理解任务要求，生成的要点过于简短。请重新审视输入内容并重新生成一个更符合要求的总结。'
@@ -54,7 +54,7 @@ def generate_summary_report(title: str, content: str, comments: str) -> SummaryR
             break
 
         if len(parsed_report.core_point) < 9:
-            logging.error(f'LLM failed to generate a valid core point after retries. Report: {parsed_report.model_dump()}')
+            logging.error(f'LLM failed to generate a valid core point after retries. Title: "{title}", Report: {parsed_report.model_dump()}')
 
         return parsed_report  # type: ignore
 
