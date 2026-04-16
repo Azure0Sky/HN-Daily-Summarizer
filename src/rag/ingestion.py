@@ -9,6 +9,7 @@ import requests
 import trafilatura
 from datetime import date
 from rank_bm25 import BM25Okapi
+from curl_cffi import requests as curl_requests
 
 import src.rag.utils as rag_utils
 from src.infrastructure.database import get_chroma_collection
@@ -42,16 +43,16 @@ def extract_article_text(url):
     """Extract the main text from an external webpage"""
     if not url:
         return ''
-    
+
     # Filter out resources that are clearly not text-based
     if url.endswith(('.pdf', '.png', '.jpg', '.mp4')) or 'youtube.com/watch' in url:
         return '[Non-text resource or Video]'
 
     try:
-        downloaded = trafilatura.fetch_url(url)
-        if downloaded:
+        response = curl_requests.get(url, timeout=REQUEST_TIMEOUT, impersonate='chrome')
+        if response.status_code == 200:
             # Extract the main text, removing navigation bars, ads, etc.
-            text = trafilatura.extract(downloaded, include_comments=False, include_tables=False)
+            text = trafilatura.extract(response.text, include_comments=False, include_tables=False)
             return text if text else '[Failed to extract meaningful text]'
         return '[Fetch failed or blocked by anti-scraping]'
 

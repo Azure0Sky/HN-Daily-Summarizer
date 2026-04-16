@@ -215,7 +215,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-test.ipynb
+*.ipynb
 
 chroma_data/
 

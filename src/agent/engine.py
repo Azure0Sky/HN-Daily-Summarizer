@@ -36,12 +36,26 @@ def generate_summary_report(title: str, content: str, comments: str) -> SummaryR
     messages = build_summary_messages(title, content, comments)
 
     try:
-        parsed_report = llm_client.parse(
-            messages=messages,
-            response_format=SummaryReport,
-            temperature=0.2
-        )
-        return parsed_report
+        for _ in range(3):  # Retry up to 3 times if the generated core point seems invalid
+            parsed_report = llm_client.parse(
+                messages=messages,
+                response_format=SummaryReport,
+                temperature=0.1
+            )
+
+            if len(parsed_report.core_point) < 9:
+                logging.warning(f'LLM generated core point is too short, \
+                                likely invalid. Retrying... Title: "{title}", \
+                                Generated core point: "{parsed_report.core_point}"')
+                messages.append({
+                    'role': 'user',
+                    'content': '你之前的回答似乎没有正确理解任务要求，生成的要点过于简短。请重新审视输入内容并重新生成一个更符合要求的总结。'
+                })
+                continue
+
+            break
+
+        return parsed_report  # type: ignore
 
     except Exception as e:
         logging.error(f'LLM generation failed for "{title}": {e}')
