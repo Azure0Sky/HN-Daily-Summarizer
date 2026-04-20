@@ -47,7 +47,7 @@ def generate_summary_report(title: str, content: str, comments: str) -> SummaryR
                 logging.warning(f'LLM generated core point is too short, likely invalid. Retrying... Title: "{title}", Report: {parsed_report.model_dump()}')
                 messages.append({
                     'role': 'user',
-                    'content': '你之前的回答似乎没有正确理解任务要求，生成的要点过于简短。请重新审视输入内容并重新生成一个更符合要求的总结。'
+                    'content': '你之前的回答似乎没有正确理解任务要求，生成的要点过于简短。请重新审视输入内容并重新生成更符合要求的格式化总结。'
                 })
                 continue
 
