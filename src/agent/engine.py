@@ -222,5 +222,6 @@ async def chat_with_agent(messages: list[dict]):
     async for output in _agent_loop(messages_with_sp):
         yield output
 
-    messages.clear()
-    messages.extend(messages_with_sp[1:])  # Keep the system prompt separate from the stored history, and update the original list in-place
+    # Keep the system prompt separate from the stored history, 
+    #  and update the original list in-place
+    messages[:] = messages_with_sp[1:]

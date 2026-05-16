@@ -54,7 +54,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     chat_data = context.chat_data
     if chat_data is None:
-        logging.warning('chat_data is unavailable when handling user message.')
+        logging.warning(f'chat id: {chat_id} - chat_data is unavailable when handling user message.')
         await update.message.reply_text('⚠️ 当前会话上下文不可用，请稍后重试。')
         return
 
@@ -62,7 +62,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_input = user_input[:MAX_USER_QUERY_CHARS]
         await update.message.reply_text(f'您的问题较长，我已截断到前 {MAX_USER_QUERY_CHARS} 个字符进行处理。')
 
-    logging.info(f'Received query from user: {user_input}')
+    logging.info(f'chat id: {chat_id} - Received query from user: {user_input}')
 
     processing_msg = await update.message.reply_text('🤖 Agent 正在思考中...')
 
@@ -79,7 +79,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         except Exception as e:
             if "Can't parse entities" in str(e):
-                logging.warning(f'Failed to parse Markdown entities: {e}. Falling back to plain text.')
+                logging.warning(f'chat id: {chat_id} - Failed to parse Markdown entities: {e}. Falling back to plain text.')
                 await processing_msg.edit_text(output)
             else:
                 raise

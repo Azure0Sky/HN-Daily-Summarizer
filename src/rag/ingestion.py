@@ -39,7 +39,7 @@ def fetch_hn_top_stories(limit: int = 10) -> list[dict]:
         return []
 
 
-def extract_article_text(url):
+def _extract_article_text(url):
     """Extract the main text from an external webpage"""
     if not url:
         return ''
@@ -121,7 +121,7 @@ def fetch_story_content(story: dict) -> dict:
     if url:
         # 1. external link: Use trafilatura to extract the main text content from the linked webpage
         logging.info(f'{story["id"]}: Extracting external URL: {url}')
-        content['text'] = extract_article_text(url)
+        content['text'] = _extract_article_text(url)
 
     else:
         # 2. internal post (Ask HN / Tell HN): Directly read the text field
@@ -137,14 +137,15 @@ def fetch_story_content(story: dict) -> dict:
 
 def _update_bm25_index(new_ids: list, new_documents: list, metadatas: list):
     """Update the BM25 index with new documents. Load the existing index, append new data, and save it back."""
+
     store = {'ids': [], 'raw_docs': [], 'metadatas': [], 'bm25_obj': None}
     tokenized_corpus = []
-    
+
     # Load historical data if exists
     if os.path.exists(BM25_STORE_PATH):
         with open(BM25_STORE_PATH, 'rb') as f:
             store = pickle.load(f)
-            
+
     # Append new documents
     existed_ids = set(store['ids'])
     for doc_id, doc, meta in zip(new_ids, new_documents, metadatas):
@@ -185,6 +186,8 @@ def _delete_from_vector_db(ids):
 
 
 def ingest_daily_news(digest_date: date, summaries):
+    """Ingest the daily news summaries into both the vector database and the BM25 index."""
+
     documents, metadatas, ids = [], [], []
 
     for news in summaries:

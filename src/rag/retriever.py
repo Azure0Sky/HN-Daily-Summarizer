@@ -121,7 +121,7 @@ def hybrid_retrieve(query: str, top_k: int = 5) -> str:
     # Sparse Retrieval using BM25
     sparse_hits = _sparse_retrieve(query, top_k * 2)
 
-    # Reciprocal Rank Fusion
+    # Reciprocal Rank Fusion, formula: RRF_score = 1 / (K + rank)
     fused_scores = {}
     doc_lookup = {}
     K = 60  # RRF constant
