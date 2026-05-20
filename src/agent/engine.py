@@ -35,13 +35,24 @@ class SummaryReport(BaseModel):
 def generate_summary_report(title: str, content: str, comments: str) -> SummaryReport:
     messages = build_summary_messages(title, content, comments)
 
+    parsed_report = None
     try:
         for _ in range(3):  # Retry up to 3 times if the generated core point seems invalid
-            parsed_report = llm_client.parse(
+            # parsed_report = llm_client.parse(
+            #     messages=messages,
+            #     response_format=SummaryReport,
+            #     temperature=0.1
+            # )
+            parsed_report = llm_client.parse_response(
                 messages=messages,
                 response_format=SummaryReport,
-                temperature=0.1
+                temperature=0.2
             )
+
+            if parsed_report is None:
+                logging.warning(f'LLM returned None for summary report, retrying... Title: "{title}"')
+                time.sleep(1)
+                continue
 
             if len(parsed_report.core_point) < 9:
                 logging.warning(f'LLM generated core point is too short, likely invalid. Retrying... Title: "{title}", Report: {parsed_report.model_dump()}')
@@ -53,13 +64,16 @@ def generate_summary_report(title: str, content: str, comments: str) -> SummaryR
 
             break
 
+        if parsed_report is None:
+            raise ValueError(f'LLM returned None for summary report after retries. Title: "{title}"')
+
         if len(parsed_report.core_point) < 9:
             logging.error(f'LLM failed to generate a valid core point after retries. Title: "{title}", Report: {parsed_report.model_dump()}')
 
-        return parsed_report  # type: ignore
+        return parsed_report
 
     except Exception as e:
-        logging.error(f'LLM generation failed for "{title}": {e}')
+        logging.error(f'LLM generation failed for "{title}":\n{e}')
         # Return a safe fallback object so the downstream pipeline can continue.
         return SummaryReport(
             translated_title=title,

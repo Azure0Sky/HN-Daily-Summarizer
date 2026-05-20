@@ -60,6 +60,26 @@ class LLMClient:
         )
         return response.choices[0].message.parsed
 
+    def parse_response(self, messages: list[dict], response_format: Type[T], temperature: float = 0.2) -> T | None:
+        """Responses API variant"""
+        if self.client is None:
+            raise ValueError('LLM client is not initialized properly.')
+
+        if self.model_name is None:
+            raise ValueError('LLM model name is not configured properly.')
+
+        if not messages:
+            raise ValueError('Messages list cannot be empty.')
+        
+        response = self.client.responses.parse(
+            model=self.model_name,
+            input=messages,
+            temperature=temperature,
+            timeout=480,
+            text_format=response_format
+        )
+        return response.output_parsed
+
 
 class AsyncLLMClient:
     _instance = None
