@@ -10,8 +10,8 @@ T = TypeVar('T', bound=BaseModel)  # Generic type for Pydantic models
 class LLMClient:
     _instance = None
 
-    client = None
-    model_name= None
+    client : OpenAI | None = None
+    model_name: str | None = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -23,16 +23,34 @@ class LLMClient:
             cls._instance.model_name = settings.chat_model_name
         return cls._instance
 
-    def create(self, messages: list[dict], temperature: float = 0.2) -> str:
+    def create(self, messages: list[dict], temperature: float = 0.2) -> str | None:
         # TODO: Token log, error handling, retry logic, etc.
+        if self.client is None:
+            raise ValueError('LLM client is not initialized properly.')
+
+        if self.model_name is None:
+            raise ValueError('LLM model name is not configured properly.')
+
+        if not messages:
+            raise ValueError('Messages list cannot be empty.')
+
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=messages,
-            temperature=temperature
+            temperature=temperature,
         )
         return response.choices[0].message.content
 
-    def parse(self, messages: list[dict], response_format: Type[T], temperature: float = 0.2) -> T:
+    def parse(self, messages: list[dict], response_format: Type[T], temperature: float = 0.2) -> T | None:
+        if self.client is None:
+            raise ValueError('LLM client is not initialized properly.')
+
+        if self.model_name is None:
+            raise ValueError('LLM model name is not configured properly.')
+
+        if not messages:
+            raise ValueError('Messages list cannot be empty.')
+
         response = self.client.chat.completions.parse(
             model=self.model_name,
             messages=messages,

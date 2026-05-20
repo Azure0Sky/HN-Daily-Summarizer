@@ -17,10 +17,11 @@ def main():
     subparsers.add_parser('api', help='Start the FastAPI data receiving endpoint')
 
     task_parser = subparsers.add_parser('task', help='Run scheduled tasks')
-    task_parser.add_argument('task_name', choices=['daily_push'], help='Run the daily HN news fetching and pushing task')
+    task_parser.add_argument('task_name', choices=['daily_push', 'test_ai_flow'], 
+                             help='Run the daily HN news fetching and pushing task or test AI flow')
 
     args = parser.parse_args()
-    
+
     try:
         if args.command == 'api':
             import src.interfaces.api.routes as api_server
@@ -34,6 +35,9 @@ def main():
             if args.task_name == 'daily_push':
                 import src.task.daily_push as daily_push
                 daily_push.run_daily_work()
+            elif args.task_name == 'test_ai_flow':
+                import src.task.test_ai_flow as test_ai_flow
+                test_ai_flow.run_test_work()
 
     except KeyboardInterrupt:
         logging.info('Process interrupted by user.')

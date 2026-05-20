@@ -1,0 +1,37 @@
+name: AI Flow Test
+
+on:
+  workflow_dispatch: 
+
+jobs:
+  run-test-ai-flow:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock" # 监听 lock 文件变化以更新缓存
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+
+      - name: Install Dependencies
+        run: uv sync --frozen --no-dev
+
+      - name: Run Main Script
+        env:
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          CHAT_MODEL_NAME: ${{ secrets.CHAT_MODEL_NAME }}
+          OR_LLM_BASE_URL: ${{ secrets.OR_LLM_BASE_URL }}
+          OR_LLM_API_KEY: ${{ secrets.OR_LLM_API_KEY }}
+          OR_CHAT_MODEL_NAME: ${{ secrets.OR_CHAT_MODEL_NAME }}
+          
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        run: uv run main.py task test_ai_flow
