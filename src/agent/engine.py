@@ -37,10 +37,15 @@ def generate_summary_report(title: str, content: str, comments: str) -> SummaryR
 
     try:
         for _ in range(3):  # Retry up to 3 times if the generated core point seems invalid
-            parsed_report = llm_client.parse(
+            # parsed_report = llm_client.parse(
+            #     messages=messages,
+            #     response_format=SummaryReport,
+            #     temperature=0.1
+            # )
+            parsed_report = llm_client.parse_response(
                 messages=messages,
                 response_format=SummaryReport,
-                temperature=0.1
+                temperature=0.2
             )
 
             if len(parsed_report.core_point) < 9:
@@ -59,7 +64,7 @@ def generate_summary_report(title: str, content: str, comments: str) -> SummaryR
         return parsed_report  # type: ignore
 
     except Exception as e:
-        logging.error(f'LLM generation failed for "{title}": {e}')
+        logging.error(f'LLM generation failed for "{title}":\n{e}')
         # Return a safe fallback object so the downstream pipeline can continue.
         return SummaryReport(
             translated_title=title,
