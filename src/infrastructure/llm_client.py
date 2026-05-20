@@ -60,7 +60,8 @@ class LLMClient:
         )
         return response.choices[0].message.parsed
 
-    def parse_response(self, messages: list[dict], response_format: Type[T], temperature: float = 0.2) -> T| None:
+    def parse_response(self, messages: list[dict], response_format: Type[T], temperature: float = 0.2) -> T | None:
+        """Responses API variant"""
         if self.client is None:
             raise ValueError('LLM client is not initialized properly.')
 

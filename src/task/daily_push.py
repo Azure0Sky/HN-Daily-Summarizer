@@ -83,6 +83,7 @@ def run_daily_work():
 
         final_reports = []
         structured_summaries = []
+        gen_error = False  # Track if any story generation failed
 
         # 2. Process stories with small bounded concurrency to reduce total runtime.
         with ThreadPoolExecutor(max_workers=MAX_STORY_WORKERS) as executor:
@@ -98,10 +99,14 @@ def run_daily_work():
                     structured_summaries.append(structured_summary)
                 except Exception as e:
                     logging.error(f'Failed to process story {story.get("id")}: {e}')
+                    gen_error = True
                     continue
 
         # 3. Assemble report and dispatch to Telegram + DO server in parallel
         if final_reports:
+            if gen_error:
+                send_telegram_message('⚠️ 今日摘要生成过程中部分新闻处理失败。请检查系统日志以获取详细信息。')
+
             daily_digest = _format_tg_reports(final_reports)
 
             with ThreadPoolExecutor(max_workers=2) as executor:
