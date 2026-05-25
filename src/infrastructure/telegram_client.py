@@ -28,10 +28,13 @@ def send_telegram_message(text):
                 logging.warning('A paragraph exceeds the maximum length.')
 
             if len(curr_message) + len(paragraph) + len(SEPERATOR) + 10 < MAX_LENGTH:
-                curr_message += paragraph + SEPERATOR
+                if not curr_message:
+                    curr_message = paragraph
+                else:
+                    curr_message += SEPERATOR + paragraph
             else:
                 msg_parts.append(curr_message)
-                curr_message = '（续上）\n\n' + paragraph + SEPERATOR
+                curr_message = '（续上）\n\n' + paragraph
 
         if curr_message:
             msg_parts.append(curr_message)
@@ -49,7 +52,7 @@ def send_telegram_message(text):
 
         try:
             response = requests.post(url, json=payload, timeout=10)
-            
+
             if response.status_code == 400 and "can\'t parse entities" in response.text:
                 logging.warning('Markdown parse error. Retrying as plain text.')
                 payload['parse_mode'] = ''  # fallback to plain text
