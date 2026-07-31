@@ -75,3 +75,42 @@ sudo systemctl enable --now hn-agent
 # Check status
 sudo systemctl status hn-api hn-agent
 ```
+
+**4. Chroma Database (Background via systemd)**
+
+Create the service file at `/etc/systemd/system/chromadb.service`:
+
+```TOML
+[Unit]
+Description=ChromaDB Vector Database Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/path/to/HN-Daily-Summarizer
+ExecStart=/path/to/HN-Daily-Summarizer/.venv/bin/uv run chroma run --path ./chroma_data --host 127.0.0.1 --port {ChromaDB_Port}
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**5. Caddy Server**
+
+[Install Caddy](https://caddyserver.com/docs/install) and configure it to reverse proxy to the FastAPI server. Create a Caddyfile:
+
+```Caddyfile
+yourdomain.com {
+    reverse_proxy localhost:{FastAPI_Port}
+}
+```
+
+Enable and start Caddy:
+
+```bash
+sudo systemctl enable caddy
+sudo systemctl restart caddy
+```
