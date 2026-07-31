@@ -222,3 +222,6 @@ chroma_data/
 transcripts/
 
 notes/
+
+# opencode
+opencode.json

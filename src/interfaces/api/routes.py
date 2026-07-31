@@ -31,7 +31,7 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
 
 
 def _verify_api_key(api_key: str = Security(api_key_header)):
-    if api_key != settings.do_api_secret:
+    if api_key != settings.cloud_api_secret:
         logging.warning('Unauthorized access attempt to API.')
         raise HTTPException(status_code=403, detail='Could not validate credentials')
 
@@ -52,7 +52,7 @@ async def receive_daily_hn_summary(payload: DailyDigestPayload):
 
 def run_api_server():
     app = FastAPI(title='HN Agent Data Interface')
-    app.include_router(router, prefix="/api")
+    app.include_router(router, prefix='/api')
 
     logging.info(f'Starting FastAPI server on port {settings.fastapi_server_port}...')
     uvicorn.run(app, host='127.0.0.1', port=settings.fastapi_server_port)

@@ -7,4 +7,4 @@ HN_API_BASE: Final[str] = 'https://hacker-news.firebaseio.com/v0'  # From https:
 
 TG_CHAT_HISTORY_KEY = 'history'
 
-BM25_STORE_PATH = "./chroma_data/bm25_store.pkl"
+BM25_STORE_PATH = './chroma_data/bm25_store.pkl'

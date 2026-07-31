@@ -12,9 +12,9 @@ from src.infrastructure.telegram_client import send_telegram_message
 MAX_STORY_WORKERS = 3
 
 
-def _push_to_do_server(digest_date: date, summaries: list) -> bool:
-    if settings.do_server_webhook_url is None:
-        logging.critical('DO server webhook URL is not configured. Skipping push to DO server.')
+def _push_to_cloud_server(digest_date: date, summaries: list) -> bool:
+    if settings.cloud_server_webhook_url is None:
+        logging.critical('Cloud server webhook URL is not configured. Skipping push to Cloud server.')
         return False
 
     payload = {
@@ -23,17 +23,17 @@ def _push_to_do_server(digest_date: date, summaries: list) -> bool:
     }
     headers = {
         'Content-Type': 'application/json',
-        API_KEY_NAME: settings.do_api_secret
+        API_KEY_NAME: settings.cloud_api_secret
     }
 
     try:
-        response = requests.post(settings.do_server_webhook_url, json=payload, headers=headers, timeout=15)
+        response = requests.post(settings.cloud_server_webhook_url, json=payload, headers=headers, timeout=15)
         response.raise_for_status()
-        logging.info(f'DO server push succeeded with status {response.status_code}.')
+        logging.info(f'Cloud server push succeeded with status {response.status_code}.')
         return True
 
     except Exception as e:
-        logging.error(f'Failed to push to DO server: {e}')
+        logging.error(f'Failed to push to Cloud server: {e}')
         return False
 
 
@@ -111,7 +111,7 @@ def run_daily_work():
 
             with ThreadPoolExecutor(max_workers=2) as executor:
                 tg_future = executor.submit(send_telegram_message, daily_digest)
-                do_future = executor.submit(_push_to_do_server, digest_date=date.today(), summaries=structured_summaries)
+                cloud_future = executor.submit(_push_to_cloud_server, digest_date=date.today(), summaries=structured_summaries)
 
                 tg_success = tg_future.result()
                 err_msg = ''
@@ -120,11 +120,11 @@ def run_daily_work():
                 else:
                     err_msg = 'Failed to push daily digest to Telegram.'
 
-                do_success = do_future.result()
-                if do_success:
-                    logging.info('Successfully pushed structured digest to DO server.')
+                cloud_success = cloud_future.result()
+                if cloud_success:
+                    logging.info('Successfully pushed structured digest to Cloud server.')
                 else:
-                    err_msg += '\nFailed to push structured digest to DO server.'
+                    err_msg += '\nFailed to push structured digest to Cloud server.'
 
                 if err_msg:
                     raise Exception(err_msg.strip())
