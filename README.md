@@ -89,7 +89,8 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/path/to/HN-Daily-Summarizer
-ExecStart=/path/to/HN-Daily-Summarizer/.venv/bin/uv run chroma run --path ./chroma_data --host 127.0.0.1 --port {ChromaDB_Port}
+Environment=PATH=/path/to/HN-Daily-Summarizer/.env
+ExecStart=/path/to/HN-Daily-Summarizer/.venv/bin/uv run chroma run --path ./chroma_data --host 127.0.0.1 --port ${CHROMA_SERVER_PORT}
 
 Restart=always
 RestartSec=5
