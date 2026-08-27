@@ -4,6 +4,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     tg_bot_token: str
     tg_chat_id: str
+
+    qq_bot_app_id: str
+    qq_bot_app_secret: str
+    qq_bot_user_openid: str | None = None
+    qq_bot_user_openid_file: str = './qq_bot_user_openid.json'
+
     llm_api_key: str
     cloud_api_secret: str
     cloud_server_webhook_url: str | None = None

@@ -30,9 +30,12 @@ jobs:
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           CHAT_MODEL_NAME: ${{ secrets.CHAT_MODEL_NAME }}
-          
+
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          QQ_BOT_APP_ID: ${{ secrets.QQ_BOT_APP_ID }}
+          QQ_BOT_APP_SECRET: ${{ secrets.QQ_BOT_APP_SECRET }}
+          QQ_BOT_USER_OPENID: ${{ secrets.QQ_BOT_USER_OPENID }}
           CLOUD_SERVER_WEBHOOK_URL: ${{ secrets.CLOUD_SERVER_WEBHOOK_URL }}
           CLOUD_API_SECRET: ${{ secrets.CLOUD_API_SECRET }}
         run: uv run main.py task daily_push

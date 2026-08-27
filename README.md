@@ -17,7 +17,27 @@ Create a `.env` file based on the provided example:
 cp .env.example .env
 ```
 
-Edit the .env file to include your specific credentials.
+Edit the `.env` file to include your specific credentials.
+
+### QQ Bot push setup
+
+Configure `QQ_BOT_APP_ID` and `QQ_BOT_APP_SECRET`, then start the minimal QQ Bot listener:
+
+```bash
+uv run main.py qq-bot
+```
+
+Send a private message to the Bot from the QQ account that should receive the daily digest. The first user's OpenID is written to `qq_bot_user_openid.json`; later users cannot overwrite it. To change the recipient, stop the listener and delete that file before registering again.
+
+For GitHub Actions, copy the recorded `openid` value into the following repository secrets:
+
+```text
+QQ_BOT_APP_ID
+QQ_BOT_APP_SECRET
+QQ_BOT_USER_OPENID
+```
+
+`QQ_BOT_USER_OPENID` takes precedence over the local file. The local file is ignored by Git and is intended only for initial registration or persistent server deployments.
 
 ## Running the Application
 

@@ -8,6 +8,7 @@ from src.config.settings import settings
 from src.rag.ingestion import fetch_hn_top_stories, fetch_story_content
 from src.agent.engine import generate_summary_report
 from src.infrastructure.telegram_client import send_telegram_message
+from src.interfaces.qq_bot.push import is_qq_push_configured, send_qq_message
 
 MAX_STORY_WORKERS = 3
 
@@ -48,6 +49,17 @@ def _format_summary_markdown(original_title, summary):
 
 def _format_tg_reports(reports: list) -> str:
     return '🔥 == Hacker News Daily Digest ==\n\n' + '\n\n---\n\n'.join(reports)
+
+
+def _format_qq_reports(reports: list) -> str:
+    plain_text_reports = [report.replace('**', '') for report in reports]
+    return '🔥 == Hacker News Daily Digest ==\n\n' + '\n\n---\n\n'.join(plain_text_reports)
+
+
+def _send_alert(text: str):
+    send_telegram_message(text)
+    if is_qq_push_configured():
+        send_qq_message(text)
 
 
 def _process_story(story: dict):
@@ -102,37 +114,50 @@ def run_daily_work():
                     gen_error = True
                     continue
 
-        # 3. Assemble report and dispatch to Telegram + DO server in parallel
+        # 3. Assemble report and dispatch to all configured channels in parallel
         if final_reports:
             if gen_error:
-                send_telegram_message('⚠️ 今日摘要生成过程中部分新闻处理失败。请检查系统日志以获取详细信息。')
+                _send_alert('⚠️ 今日摘要生成过程中部分新闻处理失败。请检查系统日志以获取详细信息。')
 
             daily_digest = _format_tg_reports(final_reports)
+            qq_digest = _format_qq_reports(final_reports)
+            qq_configured = is_qq_push_configured()
 
-            with ThreadPoolExecutor(max_workers=2) as executor:
+            with ThreadPoolExecutor(max_workers=3) as executor:
                 tg_future = executor.submit(send_telegram_message, daily_digest)
-                cloud_future = executor.submit(_push_to_cloud_server, digest_date=date.today(), summaries=structured_summaries)
+                cloud_future = executor.submit(
+                    _push_to_cloud_server,
+                    digest_date=date.today(),
+                    summaries=structured_summaries,
+                )
+                qq_future = executor.submit(send_qq_message, qq_digest) if qq_configured else None
 
-                tg_success = tg_future.result()
-                err_msg = ''
-                if tg_success:
+                errors = []
+                if tg_future.result():
                     logging.info('Successfully pushed daily digest to Telegram.')
                 else:
-                    err_msg = 'Failed to push daily digest to Telegram.'
+                    errors.append('Failed to push daily digest to Telegram.')
 
-                cloud_success = cloud_future.result()
-                if cloud_success:
+                if qq_future is None:
+                    logging.warning('QQ Bot push is not configured. Skipping QQ push.')
+                elif qq_future.result():
+                    logging.info('Successfully pushed daily digest to QQ.')
+                else:
+                    errors.append('Failed to push daily digest to QQ.')
+
+                if cloud_future.result():
                     logging.info('Successfully pushed structured digest to Cloud server.')
                 else:
-                    err_msg += '\nFailed to push structured digest to Cloud server.'
+                    errors.append('Failed to push structured digest to Cloud server.')
 
-                if err_msg:
-                    raise Exception(err_msg.strip())
+                if errors:
+                    raise Exception('\n'.join(errors))
 
         else:
             logging.warning('No summaries generated today.')
-            send_telegram_message('⚠️ 今日未能生成有效的新闻摘要。请检查系统日志以获取详细信息。')
+            _send_alert('⚠️ 今日未能生成有效的新闻摘要。请检查系统日志以获取详细信息。')
 
     except Exception as e:
         logging.critical(f'Critical error in workflow: {e}')
-        send_telegram_message('❌ 今日摘要生成过程中发生错误。请检查系统日志以获取详细信息。')
+        _send_alert('❌ 今日摘要生成过程中发生错误。请检查系统日志以获取详细信息。')
+        raise

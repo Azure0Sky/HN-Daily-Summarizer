@@ -16,6 +16,7 @@ dependencies = [
     "requests>=2.33.0",
     "telegramify-markdown>=1.1.1",
     "trafilatura>=2.0.0",
+    "websocket-client>=1.9.0",
 ]
 
 [dependency-groups]

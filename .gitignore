@@ -221,6 +221,10 @@ chroma_data/
 
 transcripts/
 
+# Local QQ Bot recipient registration
+qq_bot_user_openid.json
+qq_bot_user_openid.json.tmp
+
 notes/
 
 # opencode

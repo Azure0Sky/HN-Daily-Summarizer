@@ -13,7 +13,8 @@ def main():
     parser = argparse.ArgumentParser(description='HackerNews Agent Entrypoint')
     subparsers = parser.add_subparsers(dest='command', required=True)
 
-    subparsers.add_parser('bot', help='Start the Telegram Agent Bot')
+    subparsers.add_parser('tg-bot', help='Start the Telegram Agent Bot')
+    subparsers.add_parser('qq-bot', help='Start the QQ Bot OpenID registration listener')
     subparsers.add_parser('api', help='Start the FastAPI data receiving endpoint')
 
     task_parser = subparsers.add_parser('task', help='Run scheduled tasks')
@@ -27,9 +28,13 @@ def main():
             import src.interfaces.api.routes as api_server
             api_server.run_api_server()
 
-        elif args.command == 'bot':
+        elif args.command == 'tg-bot':
             import src.interfaces.tg_bot.server as tg_bot
             tg_bot.run_tg_bot()
+
+        elif args.command == 'qq-bot':
+            import src.interfaces.qq_bot.server as qq_bot
+            qq_bot.run_qq_bot()
 
         elif args.command == 'task':
             if args.task_name == 'daily_push':

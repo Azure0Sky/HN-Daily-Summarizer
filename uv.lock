@@ -537,6 +537,7 @@ dependencies = [
     { name = "requests" },
     { name = "telegramify-markdown" },
     { name = "trafilatura" },
+    { name = "websocket-client" },
 ]
 
 [package.dev-dependencies]
@@ -558,6 +559,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.33.0" },
     { name = "telegramify-markdown", specifier = ">=1.1.1" },
     { name = "trafilatura", specifier = ">=2.0.0" },
+    { name = "websocket-client", specifier = ">=1.9.0" },
 ]
 
 [package.metadata.requires-dev]
