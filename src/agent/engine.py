@@ -121,7 +121,7 @@ async def auto_compact_history(chat_id: str, history: list):
     pure_dialogue = [m for m in history if m['role'] in {'user', 'assistant'} and not m.get('tool_calls')]
     conversation_text = json.dumps(pure_dialogue, ensure_ascii=False)
 
-    summary_prompt = '请用简练的中文总结以下对话的上下文、用户的核心关注点以及已经得出的结论。禁止包含任何客套话。'
+    summary_prompt = '请用简练的中文总结以下对话的上下文、用户的核心关注点以及已经得出的结论。'
 
     try:
         response = await async_llm_client.create(
