@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     llm_base_url: str = 'https://chatapi.starlake.tech/v1'
     chat_model_name: str = 'Qwen/Qwen3.5'
-    embedding_model_name: str = 'Qwen/Qwen3-VL-Embedding-2B'
+    embedding_model_name: str = 'tencent-community/WeMM-Embedding-2B'
 
     transcript_dir: str = './transcripts'
     
